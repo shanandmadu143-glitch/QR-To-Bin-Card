@@ -3,622 +3,1340 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Admin Panel - Home</title>
+    <title>Admin Panel - Store Inventory</title>
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Font Awesome Icons -->
+    <!-- Font Awesome -->
     <link rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- Firebase SDKs -->
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
-    <!-- SheetJS -->
+    <!-- Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-    <!-- QRCode.js -->
+    <!-- QR Code -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-    <!-- jsPDF -->
+    <!-- PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-    <!-- SweetAlert2 -->
+    <!-- Alerts -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
         .drop-zone {
             border: 2px dashed #3b82f6;
-            transition: all 0.3s ease;
+            transition: all .25s ease;
         }
 
         .drop-zone.dragover {
-            background-color: #eff6ff;
+            background: #eff6ff;
             border-color: #1d4ed8;
             transform: scale(1.01);
         }
 
         .item-card {
-            transition: all 0.25s ease;
+            transition: transform .2s ease, box-shadow .2s ease;
         }
 
         .item-card:hover {
             transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,.08);
         }
 
-        @media (max-width: 767px) {
-            .desktop-items-table {
-                display: none;
-            }
+        .mobile-items {
+            display: grid;
+        }
 
-            .mobile-item-cards {
-                display: grid;
-            }
+        .desktop-items {
+            display: none;
         }
 
         @media (min-width: 768px) {
-            .desktop-items-table {
-                display: block;
-            }
-
-            .mobile-item-cards {
+            .mobile-items {
                 display: none;
             }
+
+            .desktop-items {
+                display: block;
+            }
+        }
+
+        .qr-box img,
+        .qr-box canvas {
+            display: block;
+            margin: auto;
         }
     </style>
 </head>
 
 <body class="bg-gray-100 text-gray-800 font-sans min-h-screen">
 
-    <!-- HEADER -->
-    <header class="bg-blue-700 text-white shadow-lg py-4 px-4 sm:px-6 mb-6">
-        <div class="container mx-auto flex justify-between items-center">
+<header class="bg-blue-700 text-white shadow-lg py-4 px-4 sm:px-6 mb-6">
+    <div class="container mx-auto flex justify-between items-center">
+        <h1 class="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <i class="fas fa-user-shield"></i>
+            Admin Panel
+        </h1>
+    </div>
+</header>
 
-            <h1 class="text-xl sm:text-2xl font-bold flex items-center gap-2">
-                <i class="fas fa-user-shield"></i>
-                Admin Panel
-            </h1>
+<main class="container mx-auto px-4 max-w-6xl pb-12">
 
+    <!-- Upload area -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h2 class="text-lg font-bold mb-2 flex items-center gap-2">
+                <i class="fas fa-file-excel text-green-600"></i>
+                1. Upload Items (.xlsx)
+            </h2>
+
+            <p class="text-xs text-gray-500 mb-4">
+                Excel Sheet එකෙන් <b>B Column (Code)</b> සහ
+                <b>C Column (Name)</b> ලබාගනී.
+            </p>
+
+            <div id="drop-zone-items"
+                 class="drop-zone rounded-xl p-6 text-center cursor-pointer bg-gray-50 hover:bg-blue-50">
+                <i class="fas fa-cloud-upload-alt text-4xl text-blue-500 mb-2"></i>
+                <p class="text-sm font-semibold text-gray-700">
+                    Drag & Drop Items XLSX file here
+                </p>
+                <p class="text-xs text-gray-400 mt-1">
+                    or click to browse files
+                </p>
+                <input type="file"
+                       id="file-input-items"
+                       accept=".xlsx,.xls"
+                       class="hidden">
+            </div>
         </div>
-    </header>
 
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h2 class="text-lg font-bold mb-2 flex items-center gap-2">
+                <i class="fas fa-cubes text-blue-600"></i>
+                2. Upload Opening Stock (.xlsx)
+            </h2>
 
-    <main class="container mx-auto px-4 max-w-6xl pb-12">
+            <p class="text-xs text-gray-500 mb-4">
+                Excel Sheet එකෙන් <b>B (Code)</b>, <b>C (Name)</b> සහ
+                <b>E Column (Opening Stock)</b> ලබාගනී.
+            </p>
 
-        <!-- UPLOAD SECTION -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div id="drop-zone-stock"
+                 class="drop-zone rounded-xl p-6 text-center cursor-pointer bg-gray-50 hover:bg-green-50">
+                <i class="fas fa-file-import text-4xl text-green-500 mb-2"></i>
+                <p class="text-sm font-semibold text-gray-700">
+                    Drag & Drop Opening Stock XLSX file here
+                </p>
+                <p class="text-xs text-gray-400 mt-1">
+                    or click to browse files
+                </p>
+                <input type="file"
+                       id="file-input-stock"
+                       accept=".xlsx,.xls"
+                       class="hidden">
+            </div>
+        </div>
+    </div>
 
-            <!-- ITEMS UPLOAD -->
-            <div class="bg-white rounded-xl shadow-md p-6">
+    <!-- Registered Items -->
+    <section class="bg-white rounded-xl shadow-md p-4 sm:p-6">
 
-                <h2 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
-                    <i class="fas fa-file-excel text-green-600"></i>
-                    1. Upload Items (.xlsx)
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center
+                    gap-4 mb-6 border-b pb-4">
+
+            <div>
+                <h2 class="text-xl font-bold flex items-center gap-2">
+                    <i class="fas fa-qrcode text-purple-600"></i>
+                    Registered Items & QR Codes
                 </h2>
 
-                <p class="text-xs text-gray-500 mb-4">
-                    Excel Sheet එකෙන්
-                    <b>B Column (Code)</b>
-                    සහ
-                    <b>C Column (Name)</b>
-                    ලබාගනී.
+                <p class="text-xs text-gray-500 mt-1">
+                    QR code එක scan කිරීමෙන් අදාල Item එකේ Bin Card පිටුව විවෘත වේ.
                 </p>
-
-                <div id="drop-zone-items"
-                     class="drop-zone rounded-xl p-6 text-center cursor-pointer bg-gray-50 hover:bg-blue-50">
-
-                    <i class="fas fa-cloud-upload-alt text-4xl text-blue-500 mb-2"></i>
-
-                    <p class="text-sm font-semibold text-gray-700">
-                        Drag & Drop Items XLSX file here
-                    </p>
-
-                    <p class="text-xs text-gray-400 mt-1">
-                        or click to browse files
-                    </p>
-
-                    <input type="file"
-                           id="file-input-items"
-                           accept=".xlsx,.xls"
-                           class="hidden">
-                </div>
             </div>
 
+            <div class="flex items-center gap-2">
 
-            <!-- STOCK UPLOAD -->
-            <div class="bg-white rounded-xl shadow-md p-6">
+                <button id="pdf-btn"
+                        type="button"
+                        onclick="downloadItemsPDF()"
+                        title="Download Registered Items PDF"
+                        class="bg-red-600 hover:bg-red-700 disabled:bg-red-300
+                               text-white font-semibold py-2 px-3 sm:px-4 rounded-lg
+                               shadow transition flex items-center gap-2">
+                    <i class="fas fa-file-pdf"></i>
+                    <span class="hidden sm:inline">PDF</span>
+                </button>
 
-                <h2 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
-                    <i class="fas fa-cubes text-blue-600"></i>
-                    2. Upload Opening Stock (.xlsx)
-                </h2>
+                <button id="refresh-btn"
+                        type="button"
+                        onclick="loadItemsFromFirebase()"
+                        title="Refresh Items"
+                        class="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300
+                               text-white text-sm font-semibold py-2 px-3 sm:px-4
+                               rounded-lg shadow transition flex items-center gap-2">
+                    <i id="refresh-icon" class="fas fa-sync-alt"></i>
+                    <span class="hidden sm:inline">Refresh Items List</span>
+                </button>
 
-                <p class="text-xs text-gray-500 mb-4">
-                    Excel Sheet එකෙන්
-                    <b>B (Code)</b>,
-                    <b>C (Name)</b>
-                    සහ
-                    <b>E Column (Opening Stock)</b>
-                    ලබාගනී.
-                </p>
-
-                <div id="drop-zone-stock"
-                     class="drop-zone rounded-xl p-6 text-center cursor-pointer bg-gray-50 hover:bg-green-50">
-
-                    <i class="fas fa-file-import text-4xl text-green-500 mb-2"></i>
-
-                    <p class="text-sm font-semibold text-gray-700">
-                        Drag & Drop Opening Stock XLSX file here
-                    </p>
-
-                    <p class="text-xs text-gray-400 mt-1">
-                        or click to browse files
-                    </p>
-
-                    <input type="file"
-                           id="file-input-stock"
-                           accept=".xlsx,.xls"
-                           class="hidden">
-                </div>
             </div>
-
         </div>
 
+        <!-- Status -->
+        <div id="items-status"
+             class="hidden mb-4 rounded-lg p-3 text-sm"></div>
 
-        <!-- REGISTERED ITEMS -->
-        <div class="bg-white rounded-xl shadow-md p-4 sm:p-6">
+        <!-- Desktop -->
+        <div class="desktop-items overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                <tr class="bg-gray-800 text-white text-sm">
+                    <th class="p-3 rounded-tl-lg">Material Code (Col B)</th>
+                    <th class="p-3">Material Name (Col C)</th>
+                    <th class="p-3 text-center">Opening Stock (Col E)</th>
+                    <th class="p-3 text-center rounded-tr-lg">QR Code</th>
+                </tr>
+                </thead>
 
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b pb-4">
-
-                <div>
-                    <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
-                        <i class="fas fa-qrcode text-purple-600"></i>
-                        Registered Items & QR Codes
-                    </h2>
-
-                    <p class="text-xs text-gray-500 mt-1">
-                        QR code එක scan කිරීමෙන් අදාල Item එකේ Bin Card පිටුව විවෘත වේ
-                    </p>
-                </div>
-
-
-                <div class="flex items-center gap-2">
-
-                    <!-- PDF BUTTON -->
-                    <button onclick="downloadItemsPDF()"
-                            title="Download Registered Items PDF"
-                            class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-3 sm:px-4 rounded-lg shadow transition flex items-center gap-2">
-
-                        <i class="fas fa-file-pdf"></i>
-
-                        <span class="hidden sm:inline">
-                            PDF
-                        </span>
-
-                    </button>
-
-
-                    <!-- REFRESH -->
-                    <button onclick="loadItemsFromFirebase()"
-                            class="bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold py-2 px-3 sm:px-4 rounded-lg shadow transition flex items-center gap-2">
-
-                        <i class="fas fa-sync-alt"></i>
-
-                        <span class="hidden sm:inline">
-                            Refresh Items List
-                        </span>
-
-                    </button>
-
-                </div>
-
-            </div>
-
-
-            <!-- DESKTOP TABLE -->
-            <div class="desktop-items-table overflow-x-auto">
-
-                <table class="w-full text-left border-collapse">
-
-                    <thead>
-                        <tr class="bg-gray-800 text-white text-sm">
-
-                            <th class="p-3 rounded-tl-lg">
-                                Material Code
-                            </th>
-
-                            <th class="p-3">
-                                Material Name
-                            </th>
-
-                            <th class="p-3 text-center">
-                                Opening Stock
-                            </th>
-
-                            <th class="p-3 text-center rounded-tr-lg">
-                                QR Code
-                            </th>
-
-                        </tr>
-                    </thead>
-
-                    <tbody id="items-table-body"
-                           class="divide-y divide-gray-200 text-sm">
-
-                        <tr>
-                            <td colspan="4"
-                                class="p-6 text-center text-gray-400">
-                                Loading items...
-                            </td>
-                        </tr>
-
-                    </tbody>
-
-                </table>
-
-            </div>
-
-
-            <!-- MOBILE CARDS -->
-            <div id="mobile-item-cards"
-                 class="mobile-item-cards grid-cols-1 gap-4">
-
-                <div class="bg-gray-50 rounded-xl p-6 text-center text-gray-400">
-                    Loading items...
-                </div>
-
-            </div>
-
+                <tbody id="items-table-body"
+                       class="divide-y divide-gray-200 text-sm">
+                </tbody>
+            </table>
         </div>
 
-    </main>
+        <!-- Mobile -->
+        <div id="mobile-item-cards"
+             class="mobile-items grid-cols-1 gap-4">
+        </div>
+
+    </section>
+</main>
+
+<script>
+"use strict";
+
+/* =========================================================
+   FIREBASE
+   ========================================================= */
+
+const firebaseConfig = {
+    apiKey: "AIzaSyDUbL9Q28whHtrJ1Q-J1HzFO-ybQa11y0U",
+    authDomain: "qr-to-bin-card.firebaseapp.com",
+    projectId: "qr-to-bin-card",
+    storageBucket: "qr-to-bin-card.firebasestorage.app",
+    messagingSenderId: "64518992022",
+    appId: "1:64518992022:web:4e55b994b91765064ad2b7",
+    measurementId: "G-9PHQBG7F88"
+};
+
+let db = null;
+let registeredItems = [];
+let isLoadingItems = false;
+
+try {
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+
+    db = firebase.firestore();
+
+    // Better reliability for temporary network loss.
+    if (db.settings) {
+        try {
+            db.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
+        } catch (e) {
+            console.warn("Firestore cache setting skipped:", e);
+        }
+    }
+} catch (error) {
+    console.error("Firebase initialization failed:", error);
+}
 
 
-    <script>
+/* =========================================================
+   COMMON HELPERS
+   ========================================================= */
 
-        // ==========================================
-        // FIREBASE CONFIGURATION
-        // ==========================================
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyDUbL9Q28whHtrJ1Q-J1HzFO-ybQa11y0U",
-            authDomain: "qr-to-bin-card.firebaseapp.com",
-            projectId: "qr-to-bin-card",
-            storageBucket: "qr-to-bin-card.firebasestorage.app",
-            messagingSenderId: "64518992022",
-            appId: "1:64518992022:web:4e55b994b91765064ad2b7",
-            measurementId: "G-9PHQBG7F88"
+function showStatus(message, type = "info") {
+    const box = document.getElementById("items-status");
+    if (!box) return;
+
+    const classes = {
+        info: "bg-blue-50 text-blue-700 border border-blue-200",
+        success: "bg-green-50 text-green-700 border border-green-200",
+        warning: "bg-yellow-50 text-yellow-700 border border-yellow-200",
+        error: "bg-red-50 text-red-700 border border-red-200"
+    };
+
+    box.className = `mb-4 rounded-lg p-3 text-sm ${classes[type] || classes.info}`;
+    box.textContent = message;
+    box.classList.remove("hidden");
+}
+
+function clearStatus() {
+    const box = document.getElementById("items-status");
+    if (box) box.classList.add("hidden");
+}
+
+function setLoadingState(loading) {
+    isLoadingItems = loading;
+
+    const refreshBtn = document.getElementById("refresh-btn");
+    const pdfBtn = document.getElementById("pdf-btn");
+    const icon = document.getElementById("refresh-icon");
+
+    if (refreshBtn) refreshBtn.disabled = loading;
+    if (pdfBtn) pdfBtn.disabled = loading && registeredItems.length === 0;
+
+    if (icon) {
+        icon.classList.toggle("fa-spin", loading);
+    }
+}
+
+function getItemPageUrl(materialCode) {
+    /*
+      Always create the URL from the current page's directory.
+      This works whether the page is opened as:
+      /index.html
+      /index.html?x=1
+      /
+      /folder/index.html
+    */
+    const directoryUrl = new URL(".", window.location.href);
+    const itemUrl = new URL("item.html", directoryUrl);
+
+    itemUrl.searchParams.set("code", String(materialCode));
+
+    return itemUrl.href;
+}
+
+function safeOpeningStock(value) {
+    if (value === null || value === undefined || value === "") {
+        return 0;
+    }
+
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function getJsPDF() {
+    if (!window.jspdf || typeof window.jspdf.jsPDF !== "function") {
+        throw new Error(
+            "PDF library එක load වී නොමැත. Internet connection එක පරීක්ෂා කර page එක refresh කරන්න."
+        );
+    }
+
+    return window.jspdf.jsPDF;
+}
+
+
+/* =========================================================
+   DRAG & DROP
+   ========================================================= */
+
+function setupDragAndDrop(zoneId, inputId, handler) {
+    const zone = document.getElementById(zoneId);
+    const input = document.getElementById(inputId);
+
+    if (!zone || !input) return;
+
+    zone.addEventListener("click", () => input.click());
+
+    zone.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        zone.classList.add("dragover");
+    });
+
+    zone.addEventListener("dragleave", () => {
+        zone.classList.remove("dragover");
+    });
+
+    zone.addEventListener("drop", (event) => {
+        event.preventDefault();
+        zone.classList.remove("dragover");
+
+        const file = event.dataTransfer?.files?.[0];
+
+        if (file) {
+            handler(file);
+        }
+    });
+
+    input.addEventListener("change", (event) => {
+        const file = event.target.files?.[0];
+
+        if (file) {
+            handler(file);
+        }
+
+        // Allows selecting the same file again.
+        event.target.value = "";
+    });
+}
+
+
+/* =========================================================
+   EXCEL READER
+   ========================================================= */
+
+function readExcelFile(file) {
+    return new Promise((resolve, reject) => {
+
+        if (!window.XLSX) {
+            reject(new Error("Excel library එක load වී නොමැත."));
+            return;
+        }
+
+        if (!file) {
+            reject(new Error("Excel file එකක් තෝරා නොමැත."));
+            return;
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = (event) => {
+            try {
+                const bytes = new Uint8Array(event.target.result);
+
+                const workbook = XLSX.read(bytes, {
+                    type: "array"
+                });
+
+                if (!workbook.SheetNames?.length) {
+                    throw new Error("Excel file එකේ Sheet එකක් නොමැත.");
+                }
+
+                const sheet =
+                    workbook.Sheets[workbook.SheetNames[0]];
+
+                const rows =
+                    XLSX.utils.sheet_to_json(sheet, {
+                        header: 1,
+                        defval: "",
+                        raw: false
+                    });
+
+                resolve(rows);
+
+            } catch (error) {
+                reject(error);
+            }
         };
 
+        reader.onerror = () => {
+            reject(new Error("Excel file එක කියවීමට නොහැකි විය."));
+        };
 
-        firebase.initializeApp(firebaseConfig);
+        reader.readAsArrayBuffer(file);
+    });
+}
 
-        const db = firebase.firestore();
 
+/* =========================================================
+   UPLOAD ITEMS
+   ========================================================= */
 
-        // ==========================================
-        // DRAG & DROP
-        // ==========================================
+async function processItemsExcel(file) {
+    try {
+        if (!db) throw new Error("Firebase initialize වී නොමැත.");
 
-        function setupDragAndDrop(zoneId, inputId, handleFileFn) {
+        Swal.fire({
+            title: "Processing Items...",
+            text: "කරුණාකර රැඳී සිටින්න.",
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
 
-            const dropZone = document.getElementById(zoneId);
-            const fileInput = document.getElementById(inputId);
+        const rows = await readExcelFile(file);
 
-            dropZone.addEventListener("click", () => {
-                fileInput.click();
-            });
+        let added = 0;
+        let skipped = 0;
+        let errors = 0;
 
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
 
-            dropZone.addEventListener("dragover", (e) => {
-
-                e.preventDefault();
-
-                dropZone.classList.add("dragover");
-
-            });
-
-
-            dropZone.addEventListener("dragleave", () => {
-
-                dropZone.classList.remove("dragover");
-
-            });
-
-
-            dropZone.addEventListener("drop", (e) => {
-
-                e.preventDefault();
-
-                dropZone.classList.remove("dragover");
-
-                if (e.dataTransfer.files.length > 0) {
-
-                    handleFileFn(
-                        e.dataTransfer.files[0]
-                    );
-
-                }
-
-            });
-
-
-            fileInput.addEventListener("change", (e) => {
-
-                if (e.target.files.length > 0) {
-
-                    handleFileFn(
-                        e.target.files[0]
-                    );
-
-                }
-
-            });
-
-        }
-
-
-        setupDragAndDrop(
-            "drop-zone-items",
-            "file-input-items",
-            processItemsExcel
-        );
-
-
-        setupDragAndDrop(
-            "drop-zone-stock",
-            "file-input-stock",
-            processStockExcel
-        );
-
-
-        // ==========================================
-        // READ EXCEL
-        // ==========================================
-
-        function readExcelFile(file) {
-
-            return new Promise((resolve, reject) => {
-
-                const reader = new FileReader();
-
-                reader.onload = (e) => {
-
-                    try {
-
-                        const data =
-                            new Uint8Array(e.target.result);
-
-                        const workbook =
-                            XLSX.read(data, {
-                                type: "array"
-                            });
-
-
-                        if (
-                            !workbook.SheetNames ||
-                            workbook.SheetNames.length === 0
-                        ) {
-
-                            throw new Error(
-                                "Excel ගොනුවේ කිසිදු Sheet එකක් සොයා ගැනීමට නොහැකි විය."
-                            );
-
-                        }
-
-
-                        const firstSheetName =
-                            workbook.SheetNames[0];
-
-                        const worksheet =
-                            workbook.Sheets[firstSheetName];
-
-
-                        const json =
-                            XLSX.utils.sheet_to_json(
-                                worksheet,
-                                {
-                                    header: 1,
-                                    defval: ""
-                                }
-                            );
-
-
-                        resolve(json);
-
-                    } catch (err) {
-
-                        reject(err);
-
-                    }
-
-                };
-
-
-                reader.onerror = () => {
-
-                    reject(
-                        new Error(
-                            "File එක කියවීමට නොහැකි විය."
-                        )
-                    );
-
-                };
-
-
-                reader.readAsArrayBuffer(file);
-
-            });
-
-        }
-
-
-        // ==========================================
-        // PROCESS ITEMS
-        // ==========================================
-
-        async function processItemsExcel(file) {
-
-            try {
-
-                Swal.fire({
-                    title: "Processing Items...",
-                    allowOutsideClick: false,
-                    didOpen: () => Swal.showLoading()
-                });
-
-
-                const rows =
-                    await readExcelFile(file);
-
-
-                let addedCount = 0;
-                let errorCount = 0;
-
-
-                for (
-                    let i = 1;
-                    i < rows.length;
-                    i++
-                ) {
-
-                    const row = rows[i];
-
-                    if (!row || row.length < 2)
-                        continue;
-
-
-                    const code =
-                        row[1] !== undefined
-                            ? String(row[1]).trim()
-                            : "";
-
-
-                    const name =
-                        row[2] !== undefined
-                            ? String(row[2]).trim()
-                            : "";
-
-
-                    if (code !== "") {
-
-                        const safeDocId =
-                            code.replace(/\//g, "_");
-
-
-                        try {
-
-                            await db
-                                .collection("items")
-                                .doc(safeDocId)
-                                .set({
-
-                                    materialCode: code,
-
-                                    materialName: name
-
-                                }, {
-                                    merge: true
-                                });
-
-
-                            addedCount++;
-
-                        } catch (e) {
-
-                            console.error(
-                                "Firestore Add Error:",
-                                e
-                            );
-
-                            errorCount++;
-
-                        }
-
-                    }
-
-                }
-
-
-                if (errorCount > 0) {
-
-                    Swal.fire(
-                        "අවවාදයයි!",
-                        `අයිතම ${addedCount} ක් ඇතුලත් විය. නමුත් ${errorCount} ක දෝෂ ඇති විය.`,
-                        "warning"
-                    );
-
-                } else {
-
-                    Swal.fire(
-                        "සාර්ථකයි!",
-                        `අයිතම ${addedCount} ක් සාර්ථකව ඇතුලත් කරන ලදී!`,
-                        "success"
-                    );
-
-                }
-
-
-                loadItemsFromFirebase();
-
-            } catch (err) {
-
-                console.error(err);
-
-                Swal.fire(
-                    "දෝෂයක් සිදු විය",
-                    `Excel file එක කියවීමේදී දෝෂයක් විය: ${err.message || err}`,
-                    "error"
-                );
-
+            if (!row || row.length < 2) {
+                skipped++;
+                continue;
             }
 
-        }
+            const code =
+                String(row[1] ?? "").trim();
 
+            const name =
+                String(row[2] ?? "").trim();
 
-        // ==========================================
-        // PROCESS OPENING STOCK
-        // ==========================================
+            if (!code) {
+                skipped++;
+                continue;
+            }
 
-        async function processStockExcel(file) {
+            const safeDocId =
+                code.replace(/\//g, "_");
 
             try {
+                await db
+                    .collection("items")
+                    .doc(safeDocId)
+                    .set({
+                        materialCode: code,
+                        materialName: name
+                    }, {
+                        merge: true
+                    });
 
-                Swal.fire({
-                    title: "Updating Opening Stock...",
-                    allowOutsideClick: false,
-                    didOpen: () => Swal.showLoading()
-                });
+                added++;
+
+            } catch (error) {
+                console.error("Item upload error:", error);
+                errors++;
+            }
+        }
+
+        await loadItemsFromFirebase();
+
+        Swal.fire({
+            icon: errors ? "warning" : "success",
+            title: errors ? "Completed with warnings" : "සාර්ථකයි!",
+            html:
+                `Added: <b>${added}</b><br>` +
+                `Skipped: <b>${skipped}</b><br>` +
+                `Errors: <b>${errors}</b>`
+        });
+
+    } catch (error) {
+        console.error(error);
+
+        Swal.fire(
+            "දෝෂයක් සිදු විය",
+            error.message || String(error),
+            "error"
+        );
+    }
+}
 
 
-                const rows =
-                    await readExcelFile(file);
+/* =========================================================
+   UPLOAD OPENING STOCK
+   ========================================================= */
+
+async function processStockExcel(file) {
+    try {
+        if (!db) throw new Error("Firebase initialize වී නොමැත.");
+
+        Swal.fire({
+            title: "Updating Opening Stock...",
+            text: "කරුණාකර රැඳී සිටින්න.",
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        const rows = await readExcelFile(file);
+
+        let updated = 0;
+        let skipped = 0;
+        let errors = 0;
+
+        for (let i = 1; i < rows.length; i++) {
+
+            const row = rows[i];
+
+            if (!row) {
+                skipped++;
+                continue;
+            }
+
+            const code =
+                String(row[1] ?? "").trim();
+
+            const name =
+                String(row[2] ?? "").trim();
+
+            const rawStock =
+                String(row[4] ?? "").trim();
+
+            if (!code) {
+                skipped++;
+                continue;
+            }
+
+            const stockNumber =
+                Number.parseFloat(rawStock);
+
+            const openingStock =
+                Number.isFinite(stockNumber)
+                    ? stockNumber
+                    : 0;
+
+            const safeDocId =
+                code.replace(/\//g, "_");
+
+            const payload = {
+                materialCode: code,
+                openingStock: openingStock
+            };
+
+            if (name) {
+                payload.materialName = name;
+            }
+
+            try {
+                await db
+                    .collection("items")
+                    .doc(safeDocId)
+                    .set(payload, {
+                        merge: true
+                    });
+
+                updated++;
+
+            } catch (error) {
+                console.error("Stock update error:", error);
+                errors++;
+            }
+        }
+
+        await loadItemsFromFirebase();
+
+        Swal.fire({
+            icon: errors ? "warning" : "success",
+            title: errors ? "Completed with warnings" : "සාර්ථකයි!",
+            html:
+                `Updated: <b>${updated}</b><br>` +
+                `Skipped: <b>${skipped}</b><br>` +
+                `Errors: <b>${errors}</b>`
+        });
+
+    } catch (error) {
+        console.error(error);
+
+        Swal.fire(
+            "දෝෂයක් සිදු විය",
+            error.message || String(error),
+            "error"
+        );
+    }
+}
 
 
-                let updatedCount = 0;
-                let errorCount = 0;
+/* =========================================================
+   FIREBASE ITEMS LOAD
+   ========================================================= */
+
+async function loadItemsFromFirebase() {
+
+    if (isLoadingItems) return;
+
+    const tbody =
+        document.getElementById("items-table-body");
+
+    const mobile =
+        document.getElementById("mobile-item-cards");
+
+    if (!tbody || !mobile) return;
+
+    if (!db) {
+        showLoadingError(
+            "Firebase initialize වී නොමැත. Internet connection / Firebase configuration පරීක්ෂා කරන්න."
+        );
+        return;
+    }
+
+    setLoadingState(true);
+    clearStatus();
+
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="4" class="p-8 text-center text-gray-500">
+                <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                <div>Loading Registered Items...</div>
+            </td>
+        </tr>
+    `;
+
+    mobile.innerHTML = `
+        <div class="bg-gray-50 rounded-xl p-8 text-center text-gray-500">
+            <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+            <div>Loading Registered Items...</div>
+        </div>
+    `;
+
+    try {
+
+        /*
+          Important:
+          Do not use a Firestore orderBy() here.
+          That could require a Firestore composite index.
+          We sort the returned data locally instead.
+        */
+        const snapshot =
+            await db.collection("items").get({
+                source: "default"
+            });
+
+        registeredItems = [];
+
+        snapshot.forEach((doc) => {
+
+            const data = doc.data() || {};
+
+            const code =
+                String(
+                    data.materialCode ??
+                    doc.id ??
+                    ""
+                ).trim();
+
+            if (!code) return;
+
+            registeredItems.push({
+                id: doc.id,
+                code: code,
+                name: String(
+                    data.materialName ??
+                    "-"
+                ).trim() || "-",
+                openingStock:
+                    safeOpeningStock(
+                        data.openingStock
+                    )
+            });
+        });
+
+        registeredItems.sort((a, b) =>
+            a.code.localeCompare(
+                b.code,
+                undefined,
+                {
+                    numeric: true,
+                    sensitivity: "base"
+                }
+            )
+        );
+
+        renderRegisteredItems();
+
+        if (registeredItems.length === 0) {
+            showStatus(
+                "Registered Items collection එකේ දැනට items නොමැත.",
+                "info"
+            );
+        } else {
+            showStatus(
+                `${registeredItems.length} Registered Item(s) load කරන ලදී.`,
+                "success"
+            );
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Registered Items Load Error:",
+            error
+        );
+
+        registeredItems = [];
+
+        const isPermission =
+            error?.code === "permission-denied" ||
+            error?.code === "PERMISSION_DENIED";
+
+        const message = isPermission
+            ? "Firebase Firestore read permission denied. Firestore Rules පරීක්ෂා කරන්න."
+            : `Registered Items load කිරීමට නොහැකි විය: ${error.message || error}`;
+
+        showLoadingError(message);
+
+    } finally {
+        setLoadingState(false);
+    }
+}
 
 
-                for (
-                    let i = 1;
-                    i < rows.length;
-                    i++
-                ) {
+/* =========================================================
+   RENDER ITEMS
+   ========================================================= */
 
-                    const row = rows[i];
+function renderRegisteredItems() {
 
-                    if (!row)
-                        continue;
+    const tbody =
+        document.getElementById("items-table-body");
+
+    const mobile =
+        document.getElementById("mobile-item-cards");
+
+    if (!tbody || !mobile) return;
+
+    tbody.innerHTML = "";
+    mobile.innerHTML = "";
+
+    if (!registeredItems.length) {
+
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4"
+                    class="p-8 text-center text-gray-500">
+                    <i class="fas fa-box-open text-3xl mb-3 text-gray-300"></i>
+                    <div class="font-semibold">
+                        Registered Items නොමැත.
+                    </div>
+                    <div class="text-xs mt-1">
+                        Excel file එක upload කරලා Refresh කරන්න.
+                    </div>
+                </td>
+            </tr>
+        `;
+
+        mobile.innerHTML = `
+            <div class="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center text-gray-500">
+                <i class="fas fa-box-open text-3xl mb-3 text-gray-300"></i>
+                <div class="font-semibold">
+                    Registered Items නොමැත.
+                </div>
+            </div>
+        `;
+
+        return;
+    }
+
+    registeredItems.forEach((item, index) => {
+
+        const itemUrl =
+            getItemPageUrl(item.code);
+
+        /* -----------------------------
+           DESKTOP TABLE
+           ----------------------------- */
+
+        const row =
+            document.createElement("tr");
+
+        row.className =
+            "hover:bg-gray-50 transition border-b";
+
+        row.innerHTML = `
+            <td class="p-3 align-top">
+                <div class="font-bold text-blue-700 break-all">
+                    ${escapeHtml(item.code)}
+                </div>
+            </td>
+
+            <td class="p-3 align-top">
+                <div class="font-medium text-gray-800 break-words">
+                    ${escapeHtml(item.name)}
+                </div>
+            </td>
+
+            <td class="p-3 text-center align-top">
+                <span class="inline-flex items-center justify-center
+                             min-w-[70px] px-3 py-1 rounded-full
+                             bg-green-50 text-green-700 font-bold">
+                    ${escapeHtml(item.openingStock)}
+                </span>
+            </td>
+
+            <td class="p-3 text-center align-top">
+
+                <div class="flex flex-col items-center gap-2">
+
+                    <div id="desktop-qr-${index}"
+                         class="qr-box p-1 bg-white border rounded-lg shadow-sm
+                                w-[98px] min-h-[98px]
+                                flex items-center justify-center">
+                    </div>
+
+                    <a href="${escapeHtml(itemUrl)}"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       class="text-xs text-blue-600 hover:text-blue-800
+                              font-semibold flex items-center gap-1">
+                        <i class="fas fa-external-link-alt"></i>
+                        Open Page
+                    </a>
+
+                </div>
+            </td>
+        `;
+
+        tbody.appendChild(row);
 
 
-                    const code =
-                        row[1] !== undefined
-                            ? String(row[1]).trim()
-                            : "";
+        /* -----------------------------
+           MOBILE CARD
+           ----------------------------- */
+
+        const card =
+            document.createElement("article");
+
+        card.className =
+            "item-card bg-white rounded-2xl border border-gray-200 p-4 shadow-sm";
+
+        card.innerHTML = `
+            <div class="flex items-start justify-between gap-3">
+
+                <div class="min-w-0 flex-1">
+
+                    <div class="flex items-center gap-2 mb-3">
+
+                        <div class="w-10 h-10 rounded-xl
+                                    bg-blue-100 text-blue-700
+                                    flex items-center justify-center
+                                    shrink-0">
+                            <i class="fas fa-box"></i>
+                        </div>
+
+                        <div class="min-w-0">
+                            <div class="text-[10px] uppercase
+                                        tracking-wider font-bold text-gray-400">
+                                Material Code
+                            </div>
+
+                            <div class="font-bold text-blue-700
+                                        text-sm break-all">
+                                ${escapeHtml(item.code)}
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="mb-3">
+
+                        <div class="text-[10px] uppercase
+                                    tracking-wider font-bold text-gray-400">
+                            Material Name
+                        </div>
+
+                        <div class="font-semibold text-gray-800
+                                    text-sm break-words">
+                            ${escapeHtml(item.name)}
+                        </div>
+
+                    </div>
+
+                    <div class="inline-flex items-center gap-2
+                                bg-green-50 border border-green-100
+                                rounded-xl px-3 py-2">
+
+                        <i class="fas fa-cubes text-green-600"></i>
+
+                        <div>
+                            <div class="text-[9px] uppercase
+                                        tracking-wider font-bold text-green-600">
+                                Opening Stock
+                            </div>
+
+                            <div class="font-black text-green-800">
+                                ${escapeHtml(item.openingStock)}
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="shrink-0 text-center">
+
+                    <div id="mobile-qr-${index}"
+                         class="qr-box p-1 bg-white border rounded-lg
+                                shadow-sm w-[98px] min-h-[98px]
+                                flex items-center justify-center">
+                    </div>
+
+                    <a href="${escapeHtml(itemUrl)}"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       class="mt-2 text-[11px] text-blue-600
+                              font-semibold flex items-center
+                              justify-center gap-1">
+                        <i class="fas fa-external-link-alt"></i>
+                        Open
+                    </a>
+
+                </div>
+
+            </div>
+        `;
+
+        mobile.appendChild(card);
 
 
-                    const name =
-                        row[2] !== undefined
+        /* -----------------------------
+           QR GENERATION
+           ----------------------------- */
+
+        createQRCode(
+            `desktop-qr-${index}`,
+            itemUrl
+        );
+
+        createQRCode(
+            `mobile-qr-${index}`,
+            itemUrl
+        );
+    });
+}
+
+
+/* =========================================================
+   QR CODE
+   ========================================================= */
+
+function createQRCode(containerId, text) {
+
+    const container =
+        document.getElementById(containerId);
+
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    if (!window.QRCode) {
+        container.innerHTML = `
+            <span class="text-[10px] text-red-500 text-center">
+                QR library error
+            </span>
+        `;
+        return;
+    }
+
+    try {
+
+        new QRCode(container, {
+            text: text,
+            width: 90,
+            height: 90,
+            colorDark: "#111827",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.M
+        });
+
+    } catch (error) {
+
+        console.error(
+            "QR generation error:",
+            error
+        );
+
+        container.innerHTML = `
+            <span class="text-[10px] text-red-500 text-center">
+                QR Error
+            </span>
+        `;
+    }
+}
+
+
+/* =========================================================
+   ERROR DISPLAY
+   ========================================================= */
+
+function showLoadingError(message) {
+
+    const tbody =
+        document.getElementById("items-table-body");
+
+    const mobile =
+        document.getElementById("mobile-item-cards");
+
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4" class="p-8">
+                    <div class="text-center text-red-500">
+                        <i class="fas fa-triangle-exclamation text-3xl mb-3"></i>
+                        <div class="font-bold">
+                            Registered Items load failed
+                        </div>
+                        <div class="text-xs mt-2">
+                            ${escapeHtml(message)}
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+
+    if (mobile) {
+        mobile.innerHTML = `
+            <div class="bg-red-50 border border-red-200
+                        rounded-xl p-6 text-center text-red-600">
+                <i class="fas fa-triangle-exclamation text-3xl mb-3"></i>
+                <div class="font-bold">
+                    Registered Items load failed
+                </div>
+                <div class="text-xs mt-2">
+                    ${escapeHtml(message)}
+                </div>
+
+                <button type="button"
+                        onclick="loadItemsFromFirebase()"
+                        class="mt-4 bg-red-600 hover:bg-red-700
+                               text-white px-4 py-2 rounded-lg text-sm">
+                    <i class="fas fa-sync-alt"></i>
+                    Try Again
+                </button>
+            </div>
+        `;
+    }
+
+    showStatus(message, "error");
+}
+
+
+/* =========================================================
+   PDF EXPORT
+   ========================================================= */
+
+async function downloadItemsPDF() {
+
+    try {
+
+        if (!registeredItems.length) {
+
+            await loadItemsFromFirebase();
+
+        }
+
+        if (!registeredItems.length) {
+
+            Swal.fire(
+                "Items නොමැත",
+                "PDF එක සෑදීමට Registered Items නොමැත.",
+                "info"
+            );
+
+            return;
+        }
+
+        const jsPDF =
+            getJsPDF();
+
+        const doc =
+            new jsPDF({
+                orientation: "landscape",
+                unit: "mm",
+                format: "a4"
+            });
+
+        const pageWidth =
+            doc.internal.pageSize.getWidth();
+
+        const pageHeight =
+            doc.internal.pageSize.getHeight();
+
+        const margin = 10;
+
+        let y = 16;
+
+        function header() {
+
+            doc.setTextColor(31, 41, 55);
+
+            doc.setFontSize(18);
+            doc.setFont("helvetica", "bold");
+
+            doc.text(
+                "Registered Items & QR Codes",
+                pageWidth / 2,
+                y,
+                { align: "center" }
+            );
+
+            y += 7;
+
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(107, 114, 128);
+
+            doc.text(
+                `Generated: ${new Date().toLocaleString()}`,
+                pageWidth / 2,
+                y,
+                { align: "center" }
+            );
+
+            y += 8;
+
+            doc.setFillColor(31, 41, 55);
+            doc.rect(
+                margin,
+                y,
+                pageWidth - margin * 2,
+                9,
+                "F"
+            );
+
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(255, 255, 255);
+
+            doc.text("No.", 13, y + 6);
+            doc.text("Material Code", 27, y + 6);
+            doc.text("Material Name", 85, y + 6);
+            doc.text("Opening Stock", 215, y + 6);
+
+            y += 14;
+
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(31, 41, 55);
+        }
+
+        function footer() {
+
+            const pageCount =
+                doc.internal.getNumberOfPages();
+
+            for (
+                let page = 1;
+                page <= pageCount;
+                page++
+            ) {
+                doc.setPage(page);
+
+                doc.setFontSize(8);
+                doc.setTextColor(107, 114, 128);
+
+                doc.text(
+                    `Page ${page} of ${pageCount}`,
+                    pageWidth / 2,
+                    pageHeight - 7,
+                    { align: "center" }
+                );
+            }
+        }
+
+        header();
+
+        registeredItems.forEach((item, index) => {
+
+            const rowHeight = 9;
+
+            if (
+                y + rowHeight >
+                pageHeight - 14
+            ) {
+                doc.addPage();
+
+                y = 16;
+
+                header();
+            }
+
+            if (index % 2 === 0) {
+
+                doc.setFillColor(
+                    248,
+                    250,
+                    252
+                );
+
+                doc.rect(
+                    margin,
+                    y - 5,
+                    pageWidth - margin * 2,
+                    rowHeight,
+                    "F"
+                );
+            }
+
+            doc.setFontSize(8);
+            doc.setTextColor(31, 41, 55);
+
+            doc.text(
+                String(index + 1),
+                13,
+                y + 1
+            );
+
+            doc.text(
+                String(item.code).substring(0, 32),
+                27,
+                y + 1
+            );
+
+            doc.text(
+                String(item.name).substring(0, 65),
+                85,
+                y + 1
+            );
+
+            doc.text(
+                String(item.openingStock),
+                220,
+                y + 1
+            );
+
+            y += rowHeight;
+        });
+
+        footer();
+
+        doc.save(
+            "Registered-Items-and-QR-Codes.pdf"
+        );
+
+        showStatus(
+            "Registered Items PDF එක සාර්ථකව download කරන ලදී.",
+            "success"
+        );
+
+    } catch (error) {
+
+        console.error(
+            "PDF export error:",
+            error
+        );
+
+        Swal.fire(
+            "PDF Error",
+            error.message || "PDF එක සෑදීමට නොහැකි විය.",
+            "error"
+        );
+    }
+}
+
+
+/* =========================================================
+   INITIALIZE
+   ========================================================= */
+
+setupDragAndDrop(
+    "drop-zone-items",
+    "file-input-items",
+    processItemsExcel
+);
+
+setupDragAndDrop(
+    "drop-zone-stock",
+    "file-input-stock",
+    processStockExcel
+);
+
+window.addEventListener(
+    "DOMContentLoaded",
+    () => {
+        loadItemsFromFirebase();
+    }
+);
+
+</script>
+</body>
+</html>
