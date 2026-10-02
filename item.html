@@ -29,17 +29,14 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Delay for list items */
         .delay-1 { animation-delay: 0.1s; }
         .delay-2 { animation-delay: 0.2s; }
 
-        /* Modern Glassmorphism Modal */
         .modal-glass {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
         }
         
-        /* Floating Action Button (FAB) Pulse effect */
         .fab-pulse {
             animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
@@ -49,19 +46,51 @@
             70% { box-shadow: 0 0 0 15px rgba(37, 99, 235, 0); }
             100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
         }
+
+        /* Search Dropdown Animation */
+        .search-dropdown {
+            max-height: 250px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
     </style>
 </head>
 <body class="font-sans text-gray-800 antialiased selection:bg-blue-200">
 
     <!-- Top Navigation Header -->
     <header class="bg-gradient-to-r from-blue-800 to-blue-600 text-white shadow-lg sticky top-0 z-40">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center relative">
             <h1 class="text-lg md:text-xl font-bold flex items-center gap-2 tracking-wide">
-                <i class="fas fa-layer-group text-blue-200"></i> Bin Card Details
+                <i class="fas fa-layer-group text-blue-200"></i> Bin Card
             </h1>
-            <a href="index.html" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
-                <i class="fas fa-home"></i> <span class="hidden sm:inline">Admin Home</span>
-            </a>
+            
+            <div class="flex items-center gap-2">
+                <!-- Search Icon Toggle Button -->
+                <button onclick="toggleSearchBox()" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white w-9 h-9 rounded-full flex items-center justify-center transition shadow-sm" title="Search Item">
+                    <i class="fas fa-search text-sm"></i>
+                </button>
+                
+                <a href="index.html" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                    <i class="fas fa-home"></i> <span class="hidden sm:inline">Home</span>
+                </a>
+            </div>
+
+            <!-- Floating Search Dropdown Box (Hidden by default) -->
+            <div id="search-box-container" class="absolute top-14 right-4 left-4 bg-white rounded-xl shadow-2xl border border-gray-100 p-3 hidden z-50 fade-in text-gray-800">
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input type="text" id="search-input" oninput="filterItems(this.value)" placeholder="Search by Material Code or Name..." class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-10 pr-10 py-2.5 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition font-medium">
+                    <button onclick="toggleSearchBox()" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <!-- Search Results List -->
+                <div id="search-results" class="search-dropdown mt-2 divide-y divide-gray-100 hidden">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
         </div>
     </header>
 
@@ -69,7 +98,6 @@
         
         <!-- Hero Details Card -->
         <div class="bg-white rounded-2xl shadow-xl p-5 md:p-8 mb-8 relative border-t-4 border-blue-500 fade-in overflow-hidden">
-            <!-- Decorative background element -->
             <div class="absolute -right-10 -top-10 text-blue-50 opacity-50 pointer-events-none">
                 <i class="fas fa-box-open" style="font-size: 150px;"></i>
             </div>
@@ -101,9 +129,8 @@
             </h3>
         </div>
 
-        <!-- Dynamic Container for History (Cards on Mobile, Table on Desktop) -->
+        <!-- History Container -->
         <div id="history-container" class="fade-in delay-2">
-            <!-- Loading State -->
             <div class="bg-white rounded-2xl shadow-md p-8 text-center text-gray-400 border border-gray-100">
                 <i class="fas fa-spinner fa-spin text-3xl mb-3 text-blue-500"></i>
                 <p>Loading records...</p>
@@ -112,7 +139,7 @@
 
     </main>
 
-    <!-- Floating Action Button (FAB) for Mobile & Desktop -->
+    <!-- Floating Action Button (FAB) -->
     <button onclick="openModal()" 
         class="fixed bottom-6 right-6 md:bottom-10 md:right-10 bg-blue-600 hover:bg-blue-700 text-white rounded-full w-14 h-14 md:w-16 md:h-16 flex items-center justify-center shadow-2xl transition transform hover:scale-110 active:scale-95 z-40 fab-pulse"
         title="Add Movement">
@@ -123,7 +150,6 @@
     <div id="transaction-modal" class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm hidden flex items-end md:items-center justify-center z-50 transition-opacity duration-300 opacity-0">
         <div class="modal-glass w-full max-w-md rounded-t-3xl md:rounded-2xl shadow-2xl overflow-hidden transform translate-y-full md:translate-y-10 transition-transform duration-300" id="modal-content">
             
-            <!-- Modal Header -->
             <div class="px-6 py-4 border-b flex justify-between items-center bg-white/50">
                 <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
                     <div class="bg-blue-100 text-blue-600 p-2 rounded-lg"><i class="fas fa-pen"></i></div>
@@ -134,7 +160,6 @@
                 </button>
             </div>
 
-            <!-- Modal Body -->
             <div class="p-6 bg-white/80">
                 <div class="mb-5">
                     <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Select Date</label>
@@ -147,17 +172,14 @@
                 </div>
 
                 <div class="grid grid-cols-3 gap-3 mb-6">
-                    <!-- Receive -->
                     <div class="bg-green-50 p-3 rounded-xl border border-green-100 text-center">
                         <label class="block text-[10px] font-bold text-green-700 uppercase tracking-wide mb-1"><i class="fas fa-arrow-down mb-1 text-sm block"></i> Receive</label>
                         <input type="number" id="input-receive" min="0" value="0" class="w-full bg-white border border-green-200 rounded-lg p-2 text-center font-bold text-green-700 focus:outline-none focus:border-green-500 shadow-inner">
                     </div>
-                    <!-- Issue -->
                     <div class="bg-red-50 p-3 rounded-xl border border-red-100 text-center">
                         <label class="block text-[10px] font-bold text-red-700 uppercase tracking-wide mb-1"><i class="fas fa-arrow-up mb-1 text-sm block"></i> Issue</label>
                         <input type="number" id="input-issue" min="0" value="0" class="w-full bg-white border border-red-200 rounded-lg p-2 text-center font-bold text-red-700 focus:outline-none focus:border-red-500 shadow-inner">
                     </div>
-                    <!-- Return -->
                     <div class="bg-blue-50 p-3 rounded-xl border border-blue-100 text-center">
                         <label class="block text-[10px] font-bold text-blue-700 uppercase tracking-wide mb-1"><i class="fas fa-undo mb-1 text-sm block"></i> Return</label>
                         <input type="number" id="input-return" min="0" value="0" class="w-full bg-white border border-blue-200 rounded-lg p-2 text-center font-bold text-blue-700 focus:outline-none focus:border-blue-500 shadow-inner">
@@ -194,6 +216,74 @@
         const safeDocId = currentMaterialCode.replace(/\//g, '_'); 
 
         let baseOpeningStock = 0;
+        let allItemsCache = []; // Cache for quick client-side search
+
+        // Toggle Search Box
+        function toggleSearchBox() {
+            const box = document.getElementById('search-box-container');
+            if (box.classList.contains('hidden')) {
+                box.classList.remove('hidden');
+                document.getElementById('search-input').focus();
+                fetchAllItemsForSearch();
+            } else {
+                box.classList.add('hidden');
+                document.getElementById('search-results').classList.add('hidden');
+            }
+        }
+
+        // Fetch all items from Firestore once for fast searching
+        async function fetchAllItemsForSearch() {
+            if (allItemsCache.length > 0) return;
+            try {
+                const snapshot = await db.collection('items').get();
+                allItemsCache = [];
+                snapshot.forEach(doc => {
+                    allItemsCache.push(doc.data());
+                });
+            } catch (e) {
+                console.error("Error fetching items for search", e);
+            }
+        }
+
+        // Filter items dynamically based on Code or Name
+        function filterItems(query) {
+            const resultsDiv = document.getElementById('search-results');
+            const q = query.toLowerCase().trim();
+
+            if (!q) {
+                resultsDiv.classList.add('hidden');
+                resultsDiv.innerHTML = '';
+                return;
+            }
+
+            const filtered = allItemsCache.filter(item => {
+                const code = (item.materialCode || '').toLowerCase();
+                const name = (item.materialName || '').toLowerCase();
+                return code.includes(q) || name.includes(q);
+            });
+
+            if (filtered.length === 0) {
+                resultsDiv.innerHTML = `<div class="p-3 text-center text-xs text-gray-400">අයිතම හමු නොවීය</div>`;
+                resultsDiv.classList.remove('hidden');
+                return;
+            }
+
+            let html = '';
+            const currentUrl = window.location.href.split('?')[0];
+
+            filtered.forEach(item => {
+                const link = `${currentUrl}?code=${encodeURIComponent(item.materialCode)}`;
+                html += `
+                    <a href="${link}" class="block p-2.5 hover:bg-blue-50 transition rounded-lg">
+                        <p class="font-bold text-sm text-blue-700">${item.materialCode}</p>
+                        <p class="text-xs text-gray-600 truncate">${item.materialName || '-'}</p>
+                    </a>
+                `;
+            });
+
+            resultsDiv.innerHTML = html;
+            resultsDiv.classList.remove('hidden');
+        }
 
         async function loadItemBinCard() {
             if (!currentMaterialCode) {
@@ -205,7 +295,6 @@
             document.getElementById('display-mat-code').innerText = currentMaterialCode;
 
             try {
-                // Fetch Data
                 const itemDoc = await db.collection('items').doc(safeDocId).get();
                 if (!itemDoc.exists) {
                     document.getElementById('display-mat-name').innerText = "Item Not Found";
@@ -238,20 +327,14 @@
                     return;
                 }
 
-                // Sorting
                 let transactions = [];
                 snapshot.forEach(doc => { transactions.push(doc.data()); });
                 transactions.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-                // Identify if device is mobile or desktop for responsive rendering
                 const isMobile = window.innerWidth < 768;
-                
                 let htmlContent = '';
 
                 if (isMobile) {
-                    // ==========================================
-                    // MOBILE UI: Card Based Layout
-                    // ==========================================
                     htmlContent = `<div class="space-y-4">`;
                     transactions.forEach(trx => {
                         const r = Number(trx.receive || 0);
@@ -261,7 +344,6 @@
 
                         htmlContent += `
                             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 relative overflow-hidden transition-all hover:shadow-md">
-                                <!-- Top: Date & Op Stock -->
                                 <div class="flex justify-between items-center mb-3 border-b border-gray-50 pb-2">
                                     <div class="flex items-center gap-2">
                                         <div class="bg-blue-100 text-blue-600 p-1.5 rounded-lg"><i class="fas fa-calendar-day text-xs"></i></div>
@@ -273,7 +355,6 @@
                                     </div>
                                 </div>
                                 
-                                <!-- Middle: Movements (Flex layout) -->
                                 <div class="flex justify-between items-center bg-gray-50 rounded-xl p-3 mb-3">
                                     <div class="text-center w-1/3 border-r border-gray-200">
                                         <span class="text-[10px] text-green-600 font-bold uppercase block mb-1">Rec (+)</span>
@@ -289,7 +370,6 @@
                                     </div>
                                 </div>
                                 
-                                <!-- Bottom: Closing Stock Highlight -->
                                 <div class="flex justify-between items-center bg-blue-600 text-white rounded-xl p-3 shadow-inner">
                                     <span class="text-xs font-bold uppercase tracking-wider">Closing Stock</span>
                                     <span class="text-xl font-black">${closingStock}</span>
@@ -300,9 +380,6 @@
                     });
                     htmlContent += `</div>`;
                 } else {
-                    // ==========================================
-                    // DESKTOP UI: Modern Table Layout
-                    // ==========================================
                     htmlContent = `
                         <div class="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
                             <table class="w-full text-left border-collapse">
@@ -352,14 +429,13 @@
             } catch (err) {
                 console.error("Load Data Error:", err);
                 if(err.code === 'permission-denied') {
-                     Swal.fire('Permission Error', 'ඔබට දත්ත කියවීමට හෝ ලිවීමට අවසර නොමැත. කරුණාකර Firebase Rules යාවත්කාලීන කරන්න.', 'error');
+                     Swal.fire('Permission Error', 'ඔබට දත්ත කියවීමට හෝ ලිවීමට අවසර නොමැත.', 'error');
                 } else {
                      Swal.fire('Error', 'දත්ත ලබාගැනීමේදී දෝෂයක් සිදු විය.', 'error');
                 }
             }
         }
 
-        // Modal Controls with Animation
         const modal = document.getElementById('transaction-modal');
         const modalContent = document.getElementById('modal-content');
 
@@ -371,7 +447,6 @@
             document.getElementById('input-return').value = '';
             
             modal.classList.remove('hidden');
-            // Allow display block to apply before animating opacity/transform
             setTimeout(() => {
                 modal.classList.remove('opacity-0');
                 modal.classList.add('opacity-100');
@@ -390,7 +465,7 @@
             
             setTimeout(() => {
                 modal.classList.add('hidden');
-            }, 300); // Wait for transition
+            }, 300);
         }
 
         async function saveTransactionRecord() {
@@ -444,7 +519,6 @@
             }
         }
 
-        // Auto reload on window resize to switch between Mobile Card UI and Desktop Table UI seamlessly
         let resizeTimer;
         window.addEventListener('resize', () => {
             clearTimeout(resizeTimer);
@@ -453,7 +527,6 @@
             }, 250);
         });
 
-        // Initialize
         window.addEventListener('DOMContentLoaded', loadItemBinCard);
     </script>
 </body>
