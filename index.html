@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store Inventory System - Home</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <!-- SheetJS (XLSX Reader) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- QRCode.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .drop-zone { border: 2px dashed #3b82f6; transition: all 0.3s ease; }
+        .drop-zone.dragover { background-color: #eff6ff; border-color: #1d4ed8; transform: scale(1.01); }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-blue-700 text-white shadow-lg py-4 px-6 mb-6">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold flex items-center gap-2">
+                <i class="fas fa-boxes"></i> Store Inventory System
+            </h1>
+            <span class="text-xs bg-blue-800 px-3 py-1 rounded-full border border-blue-400">Firebase Powered</span>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 max-w-6xl pb-12">
+        
+        <!-- Drag & Drop Upload Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            
+            <!-- 1. Items Upload Drag & Drop -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
+                    <i class="fas fa-file-excel text-green-600"></i> 1. Upload Items (.xlsx)
+                </h2>
+                <p class="text-xs text-gray-500 mb-4">
+                    Excel Sheet එකෙන් <b>B Column (Code)</b> සහ <b>C Column (Name)</b> ලබාගනී.
+                </p>
+                <div id="drop-zone-items" class="drop-zone rounded-xl p-6 text-center cursor-pointer bg-gray-50 hover:bg-blue-50">
+                    <i class="fas fa-cloud-upload-alt text-4xl text-blue-500 mb-2"></i>
+                    <p class="text-sm font-semibold text-gray-700">Drag & Drop Items XLSX file here</p>
+                    <p class="text-xs text-gray-400 mt-1">or click to browse files</p>
+                    <input type="file" id="file-input-items" accept=".xlsx, .xls" class="hidden">
+                </div>
+            </div>
+
+            <!-- 2. Opening Stock Upload Drag & Drop -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
+                    <i class="fas fa-cubes text-blue-600"></i> 2. Upload Opening Stock (.xlsx)
+                </h2>
+                <p class="text-xs text-gray-500 mb-4">
+                    Excel Sheet එකෙන් <b>B (Code)</b>, <b>C (Name)</b> සහ <b>E Column (Opening Stock)</b> ලබාගනී.
+                </p>
+                <div id="drop-zone-stock" class="drop-zone rounded-xl p-6 text-center cursor-pointer bg-gray-50 hover:bg-green-50">
+                    <i class="fas fa-file-import text-4xl text-green-500 mb-2"></i>
+                    <p class="text-sm font-semibold text-gray-700">Drag & Drop Opening Stock XLSX file here</p>
+                    <p class="text-xs text-gray-400 mt-1">or click to browse files</p>
+                    <input type="file" id="file-input-stock" accept=".xlsx, .xls" class="hidden">
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Registered Items & QR Table -->
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b pb-4">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                        <i class="fas fa-qrcode text-purple-600"></i> Registered Items & QR Codes
+                    </h2>
+                    <p class="text-xs text-gray-500 mt-1">QR code එක scan කිරීමෙන් අදාල Item එකේ Bin Card පිටුව විවෘත වේ</p>
+                </div>
+                <button onclick="loadItemsFromFirebase()" class="bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold py-2 px-4 rounded-lg shadow transition flex items-center gap-2">
+                    <i class="fas fa-sync-alt"></i> Refresh Items List
+                </button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-800 text-white text-sm">
+                            <th class="p-3 rounded-tl-lg">Material Code (Col B)</th>
+                            <th class="p-3">Material Name (Col C)</th>
+                            <th class="p-3 text-center">Opening Stock (Col E)</th>
+                            <th class="p-3 text-center rounded-tr-lg">QR Code</th>
+                        </tr>
+                    </thead>
+                    <tbody id="items-table-body" class="divide-y divide-gray-200 text-sm">
+                        <tr>
+                            <td colspan="4" class="p-6 text-center text-gray-400">Loading items...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // ==========================================
+        // FIREBASE CONFIGURATION 
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUbL9Q28whHtrJ1Q-J1HzFO-ybQa11y0U",
+            authDomain: "qr-to-bin-card.firebaseapp.com",
+            projectId: "qr-to-bin-card",
+            storageBucket: "qr-to-bin-card.firebasestorage.app",
+            messagingSenderId: "64518992022",
+            appId: "1:64518992022:web:4e55b994b91765064ad2b7",
+            measurementId: "G-9PHQBG7F88"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Setup Drag & Drop Listeners
+        function setupDragAndDrop(zoneId, inputId, handleFileFn) {
+            const dropZone = document.getElementById(zoneId);
+            const fileInput = document.getElementById(inputId);
+
+            dropZone.addEventListener('click', () => fileInput.click());
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                if (e.dataTransfer.files.length > 0) {
+                    handleFileFn(e.dataTransfer.files[0]);
+                }
+            });
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFileFn(e.target.files[0]);
+                }
+            });
+        }
+
+        setupDragAndDrop('drop-zone-items', 'file-input-items', processItemsExcel);
+        setupDragAndDrop('drop-zone-stock', 'file-input-stock', processStockExcel);
+
+        // Safe Excel Reader Function
+        function readExcelFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+                            throw new Error("Excel ගොනුවේ කිසිදු Sheet එකක් සොයා ගැනීමට නොහැකි විය.");
+                        }
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        // defval: "" ensures array indices do not shift for empty cells
+                        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                        resolve(json);
+                    } catch (err) {
+                        reject(err);
+                    }
+                };
+                reader.onerror = () => reject(new Error("File එක කියවීමට නොහැකි විය."));
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        // 1. Process Items Excel (B = Code, C = Name)
+        async function processItemsExcel(file) {
+            try {
+                Swal.fire({ title: 'Processing Items...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                const rows = await readExcelFile(file);
+                let addedCount = 0;
+                let errorCount = 0;
+
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (!row || row.length < 2) continue;
+
+                    const code = row[1] !== undefined ? String(row[1]).trim() : "";
+                    const name = row[2] !== undefined ? String(row[2]).trim() : "";
+
+                    if (code !== "") {
+                        const safeDocId = code.replace(/\//g, '_'); // Fix Firestore path bug
+                        try {
+                            await db.collection('items').doc(safeDocId).set({
+                                materialCode: code,
+                                materialName: name
+                            }, { merge: true });
+                            addedCount++;
+                        } catch (e) {
+                            console.error("Firestore Add Error:", e);
+                            errorCount++;
+                        }
+                    }
+                }
+
+                if (errorCount > 0) {
+                     Swal.fire('අවවාදයයි!', `අයිතම ${addedCount} ක් ඇතුලත් විය. නමුත් ${errorCount} ක දෝෂ (Permissions) ඇති විය. Firebase Rules පරීක්ෂා කරන්න.`, 'warning');
+                } else {
+                     Swal.fire('සාර්ථකයි!', `අයිතම ${addedCount} ක් සාර්ථකව ඇතුලත් කරන ලදී!`, 'success');
+                }
+                
+                loadItemsFromFirebase();
+            } catch (err) {
+                console.error(err);
+                Swal.fire('දෝෂයක් සිදු විය', `Excel file එක කියවීමේදී දෝෂයක් විය: ${err.message || err}`, 'error');
+            }
+        }
+
+        // 2. Process Opening Stock Excel (B = Code, C = Name, E = Opening Stock)
+        async function processStockExcel(file) {
+            try {
+                Swal.fire({ title: 'Updating Opening Stock...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                const rows = await readExcelFile(file);
+                let updatedCount = 0;
+                let errorCount = 0;
+
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (!row) continue;
+
+                    const code = row[1] !== undefined ? String(row[1]).trim() : "";
+                    const name = row[2] !== undefined ? String(row[2]).trim() : "";
+                    const rawStock = row[4] !== undefined ? String(row[4]).trim() : "0";
+                    const opStockVal = parseFloat(rawStock) || 0;
+
+                    if (code !== "") {
+                        const safeDocId = code.replace(/\//g, '_');
+                        const payload = {
+                            materialCode: code,
+                            openingStock: opStockVal
+                        };
+                        if (name !== "") payload.materialName = name;
+
+                        try {
+                           await db.collection('items').doc(safeDocId).set(payload, { merge: true });
+                           updatedCount++;
+                        } catch (e) {
+                            console.error("Firestore Update Error:", e);
+                            errorCount++;
+                        }
+                    }
+                }
+                
+                if (errorCount > 0) {
+                     Swal.fire('අවවාදයයි!', `Opening Stock ${updatedCount} ක් යාවත්කාලීන විය. නමුත් ${errorCount} ක දෝෂ (Permissions) ඇති විය. Firebase Rules පරීක්ෂා කරන්න.`, 'warning');
+                } else {
+                     Swal.fire('සාර්ථකයි!', `Opening Stock අගයන් ${updatedCount} ක් සාර්ථකව යාවත්කාලීන කරන ලදී!`, 'success');
+                }
+                
+                loadItemsFromFirebase();
+            } catch (err) {
+                console.error(err);
+                Swal.fire('දෝෂයක් සිදු විය', `Opening Stock Excel file එක කියවීමේදී දෝෂයක් විය: ${err.message || err}`, 'error');
+            }
+        }
+
+        // Load Data to Table and Generate QR Codes
+        async function loadItemsFromFirebase() {
+            const tbody = document.getElementById('items-table-body');
+            tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-gray-500">Loading data...</td></tr>`;
+
+            try {
+                const snapshot = await db.collection('items').get();
+                if (snapshot.empty) {
+                    tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-gray-500">තවමත් කිසිදු අයිතමයක් ඇතුලත් කර නොමැත. Excel file එකක් upload කරන්න.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = '';
+                
+                // Base URL setup to point to item.html correctly
+                const currentUrl = window.location.href;
+                let baseUrl = currentUrl.split('?')[0].replace('index.html', '').replace(/\/$/, '') + '/item.html';
+
+                snapshot.forEach(doc => {
+                    const item = doc.data();
+                    const code = item.materialCode || doc.id;
+                    const name = item.materialName || '-';
+                    const opStock = item.openingStock !== undefined ? item.openingStock : 0;
+                    const safeCodeId = doc.id;
+
+                    const itemPageUrl = `${baseUrl}?code=${encodeURIComponent(code)}`;
+
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-gray-50 transition border-b";
+                    tr.innerHTML = `
+                        <td class="p-3 font-bold text-blue-700">${code}</td>
+                        <td class="p-3 font-medium text-gray-800">${name}</td>
+                        <td class="p-3 text-center font-semibold text-green-700">${opStock}</td>
+                        <td class="p-3 text-center">
+                            <div class="flex flex-col items-center justify-center gap-1">
+                                <div id="qr-container-${safeCodeId}" class="p-1 bg-white border rounded shadow-sm inline-block"></div>
+                                <a href="${itemPageUrl}" target="_blank" class="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-1">
+                                    <i class="fas fa-external-link-alt"></i> Open Page
+                                </a>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+
+                    setTimeout(() => {
+                        const container = document.getElementById(`qr-container-${safeCodeId}`);
+                        if (container) {
+                            container.innerHTML = '';
+                            new QRCode(container, {
+                                text: itemPageUrl,
+                                width: 80,
+                                height: 80,
+                                correctLevel: QRCode.CorrectLevel.M
+                            });
+                        }
+                    }, 50);
+                });
+
+            } catch (err) {
+                console.error("Load Data Error:", err);
+                if(err.code === 'permission-denied') {
+                    tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-red-500 font-bold">Permissions Denied! <br> කරුණාකර Firebase Firestore Rules පරීක්ෂා කර "allow read, write: if true;" ලෙස සකසන්න.</td></tr>`;
+                    Swal.fire('Permission Error', 'ඔබට දත්ත කියවීමට හෝ ලිවීමට අවසර නොමැත. කරුණාකර Firebase Rules යාවත්කාලීන කරන්න.', 'error');
+                } else {
+                     tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-red-500">දත්ත ලබාගැනීමේදී දෝෂයක් සිදු විය.</td></tr>`;
+                }
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', loadItemsFromFirebase);
+    </script>
+</body>
+</html>
