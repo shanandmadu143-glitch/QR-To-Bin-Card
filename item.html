@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Item Bin Card</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-blue-700 text-white shadow-md py-4 px-6 mb-6">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <i class="fas fa-clipboard-list"></i> Item Bin Card Details
+            </h1>
+            <a href="admin.html" class="text-xs bg-blue-800 hover:bg-blue-900 text-white px-3 py-2 rounded-lg transition border border-blue-400 flex items-center gap-1">
+                <i class="fas fa-arrow-left"></i> Admin Panel
+            </a>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 max-w-4xl pb-12">
+        
+        <!-- Details Card -->
+        <div class="bg-white rounded-xl shadow-md p-6 mb-6 relative border-t-4 border-blue-600">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pr-12">
+                <div>
+                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-2.5 py-1 rounded">Material Details</span>
+                    <h2 class="text-2xl font-extrabold text-gray-900 mt-2" id="display-mat-name">Loading...</h2>
+                    <p class="text-sm text-gray-600 mt-1">Material Code: <span class="font-bold text-blue-700" id="display-mat-code">---</span></p>
+                </div>
+                <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-right">
+                    <p class="text-xs text-green-700 font-semibold">Base Opening Stock</p>
+                    <p class="text-2xl font-extrabold text-green-800" id="display-op-stock">0</p>
+                </div>
+            </div>
+
+            <!-- Edit Button -->
+            <button onclick="openModal()" title="Add or Edit Movement" 
+                class="absolute top-6 right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition transform hover:scale-105 active:scale-95">
+                <i class="fas fa-pen text-lg"></i>
+            </button>
+        </div>
+
+        <!-- Bin Card Movements Table -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="p-4 bg-gray-800 text-white flex justify-between items-center">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                    <i class="fas fa-history text-yellow-400"></i> Daily Movement History
+                </h3>
+                <span class="text-xs text-gray-300">Ordered by Date</span>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-gray-100 text-gray-700 border-b border-gray-200">
+                            <th class="p-3 font-semibold">Date</th>
+                            <th class="p-3 font-semibold text-right">Op. Stock</th>
+                            <th class="p-3 font-semibold text-right text-green-600">Receive (+)</th>
+                            <th class="p-3 font-semibold text-right text-red-600">Issue (-)</th>
+                            <th class="p-3 font-semibold text-right text-blue-600">Return (+)</th>
+                            <th class="p-3 font-semibold text-right text-purple-700 bg-purple-50">Closing Stock</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bincard-table-body" class="divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="6" class="p-6 text-center text-gray-400">Loading bin card records...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Form -->
+    <div id="transaction-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-50 px-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+            
+            <div class="bg-blue-700 p-4 text-white flex justify-between items-center">
+                <h3 class="font-bold text-lg flex items-center gap-2">
+                    <i class="fas fa-plus-circle"></i> Add / Update Movement
+                </h3>
+                <button onclick="closeModal()" class="text-white hover:text-gray-200 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-6">
+                <p class="text-xs text-gray-500 mb-4">
+                    එකම දිනයට අගයන් නැවත ඇතුලත් කළ විට, පැවති අගයන්ට එකතු (Add) වී closing stock එක ස්වයංක්‍රීයව සකස් වේ.
+                </p>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">Select Date</label>
+                        <input type="date" id="input-date" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-green-700 mb-1">Receive Quantity (ලැබුණු ප්‍රමාණය)</label>
+                        <input type="number" id="input-receive" min="0" value="0" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-green-500 outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-red-700 mb-1">Issue Quantity (නිකුත් කළ ප්‍රමාණය)</label>
+                        <input type="number" id="input-issue" min="0" value="0" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-red-500 outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-blue-700 mb-1">Return Quantity (ආපසු පැමිණි ප්‍රමාණය)</label>
+                        <input type="number" id="input-return" min="0" value="0" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                </div>
+
+                <div class="mt-6 flex gap-3">
+                    <button onclick="closeModal()" class="w-1/2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2.5 rounded-lg text-sm transition">Cancel</button>
+                    <button onclick="saveTransactionRecord()" class="w-1/2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg text-sm transition shadow flex justify-center items-center gap-2">
+                        <i class="fas fa-save"></i> Save Record
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // FIREBASE CONFIGURATION
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUbL9Q28whHtrJ1Q-J1HzFO-ybQa11y0U",
+            authDomain: "qr-to-bin-card.firebaseapp.com",
+            projectId: "qr-to-bin-card",
+            storageBucket: "qr-to-bin-card.firebasestorage.app",
+            messagingSenderId: "64518992022",
+            appId: "1:64518992022:web:4e55b994b91765064ad2b7",
+            measurementId: "G-9PHQBG7F88"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const rawCode = urlParams.get('code');
+        const currentMaterialCode = rawCode ? rawCode.trim() : "";
+        const safeDocId = currentMaterialCode.replace(/\//g, '_');
+
+        let baseOpeningStock = 0;
+
+        async function loadItemBinCard() {
+            if (!currentMaterialCode) {
+                Swal.fire('Error', 'Material Code එකක් ලබාදී නොමැත. කරුණාකර Admin Panel හරහා හෝ QR Code එක scan කර පිවිසෙන්න.', 'error');
+                document.getElementById('display-mat-name').innerText = "Material Code Missing";
+                return;
+            }
+
+            document.getElementById('display-mat-code').innerText = currentMaterialCode;
+
+            try {
+                const itemDoc = await db.collection('items').doc(safeDocId).get();
+                if (!itemDoc.exists) {
+                    document.getElementById('display-mat-name').innerText = "Item Not Found";
+                    Swal.fire('Not Found', 'මෙම Material Code එකට අදාල දත්ත පද්ධතියේ නොමැත.', 'warning');
+                    return;
+                }
+
+                const itemData = itemDoc.data();
+                document.getElementById('display-mat-name').innerText = itemData.materialName || 'Unnamed Material';
+                baseOpeningStock = itemData.openingStock !== undefined ? Number(itemData.openingStock) : 0;
+                document.getElementById('display-op-stock').innerText = baseOpeningStock;
+
+                const snapshot = await db.collection('transactions')
+                    .where('materialCode', '==', currentMaterialCode)
+                    .orderBy('date', 'asc')
+                    .get();
+
+                const tbody = document.getElementById('bincard-table-body');
+                tbody.innerHTML = '';
+
+                let runningOpeningStock = baseOpeningStock;
+
+                if (snapshot.empty) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="p-6 text-center text-gray-500">
+                                කිසිදු දෛනික චලනයක් ඇතුලත් කර නොමැත.<br>
+                                දැනට පවතින Closing Stock: <b class="text-purple-700">${runningOpeningStock}</b>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                snapshot.forEach(doc => {
+                    const trx = doc.data();
+                    const r = Number(trx.receive || 0);
+                    const i = Number(trx.issue || 0);
+                    const ret = Number(trx.return || 0);
+
+                    const closingStock = runningOpeningStock + r + ret - i;
+
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-gray-50 transition border-b";
+                    tr.innerHTML = `
+                        <td class="p-3 font-semibold text-gray-800">${trx.date}</td>
+                        <td class="p-3 text-right font-medium text-gray-600">${runningOpeningStock}</td>
+                        <td class="p-3 text-right font-bold text-green-600">${r > 0 ? '+' + r : '0'}</td>
+                        <td class="p-3 text-right font-bold text-red-600">${i > 0 ? '-' + i : '0'}</td>
+                        <td class="p-3 text-right font-bold text-blue-600">${ret > 0 ? '+' + ret : '0'}</td>
+                        <td class="p-3 text-right font-extrabold text-purple-800 bg-purple-50">${closingStock}</td>
+                    `;
+                    tbody.appendChild(tr);
+
+                    runningOpeningStock = closingStock;
+                });
+
+            } catch (err) {
+                console.error("Load Data Error:", err);
+                if(err.code === 'permission-denied') {
+                     Swal.fire('Permission Error', 'ඔබට දත්ත කියවීමට හෝ ලිවීමට අවසර නොමැත. කරුණාකර Firebase Rules යාවත්කාලීන කරන්න.', 'error');
+                } else {
+                     Swal.fire('Error', 'දත්ත ලබාගැනීමේදී දෝෂයක් සිදු විය: ' + err.message, 'error');
+                }
+            }
+        }
+
+        function openModal() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('input-date').value = today;
+            document.getElementById('input-receive').value = 0;
+            document.getElementById('input-issue').value = 0;
+            document.getElementById('input-return').value = 0;
+            document.getElementById('transaction-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('transaction-modal').classList.add('hidden');
+        }
+
+        async function saveTransactionRecord() {
+            const dateVal = document.getElementById('input-date').value;
+            const receiveVal = Number(document.getElementById('input-receive').value) || 0;
+            const issueVal = Number(document.getElementById('input-issue').value) || 0;
+            const returnVal = Number(document.getElementById('input-return').value) || 0;
+
+            if (!dateVal) {
+                Swal.fire('Warning', 'කරුණාකර දිනයක් තෝරන්න.', 'warning');
+                return;
+            }
+
+            if (receiveVal === 0 && issueVal === 0 && returnVal === 0) {
+                Swal.fire('Warning', 'කරුණාකර අවම වශයෙන් එක් අගයක්වත් ඇතුලත් කරන්න.', 'warning');
+                return;
+            }
+
+            const docId = `${safeDocId}_${dateVal}`;
+
+            try {
+                Swal.fire({ title: 'Saving Record...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+                await db.collection('transactions').doc(docId).set({
+                    materialCode: currentMaterialCode,
+                    date: dateVal,
+                    receive: firebase.firestore.FieldValue.increment(receiveVal),
+                    issue: firebase.firestore.FieldValue.increment(issueVal),
+                    return: firebase.firestore.FieldValue.increment(returnVal)
+                }, { merge: true });
+
+                closeModal();
+                Swal.fire({
+                    title: 'සාර්ථකයි!',
+                    text: 'තොරතුරු සාර්ථකව යාවත්කාලීන විය.',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+
+                loadItemBinCard();
+
+            } catch (err) {
+                console.error("Save Data Error:", err);
+                if(err.code === 'permission-denied') {
+                     Swal.fire('Permission Error', 'ඔබට දත්ත ඇතුලත් කිරීමට අවසර නොමැත. කරුණාකර Firebase Rules යාවත්කාලීන කරන්න.', 'error');
+                } else {
+                     Swal.fire('Error', 'දත්ත සුරැකීමේදී දෝෂයක් සිදු විය: ' + err.message, 'error');
+                }
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', loadItemBinCard);
+    </script>
+</body>
+</html>
