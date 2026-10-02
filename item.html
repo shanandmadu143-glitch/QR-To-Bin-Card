@@ -903,27 +903,15 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
                 return;
             }
 
-            // Use the plain code in the query string as the navigation fallback.
-            // This also keeps Search working in browsers/environments where Web Crypto
-            // is unavailable (for example some local-file previews). A token is added
-            // as a secondary route when it can be generated.
-            const currentUrl = `${window.location.origin}${window.location.pathname}`;
+            const currentUrl = `${window.location.origin}${window.location.pathname}${window.location.search}`;
 
             const rows = await Promise.all(filtered.map(async item => {
-                let token = '';
-                try {
-                    token = itemTokenCache.get(item.materialCode) || '';
-                    if (!token) {
-                        token = await createItemToken(item.materialCode);
-                        itemTokenCache.set(item.materialCode, token);
-                    }
-                } catch (tokenError) {
-                    console.warn('Search token generation failed; using code fallback.', tokenError);
+                let token = itemTokenCache.get(item.materialCode);
+                if (!token) {
+                    token = await createItemToken(item.materialCode);
+                    itemTokenCache.set(item.materialCode, token);
                 }
-
-                const link = token
-                    ? `${currentUrl}?code=${encodeURIComponent(item.materialCode)}#item=${encodeURIComponent(token)}`
-                    : `${currentUrl}?code=${encodeURIComponent(item.materialCode)}`;
+                const link = `${currentUrl}#item=${encodeURIComponent(token)}`;
 
                 return `
                     <a href="${escapeHtml(link)}"
@@ -973,46 +961,11 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     // ==========================================
     // BIN CARD
     // ==========================================
-    function normalizeTransactionDate(value) {
-        if (value == null) return '';
-        if (typeof value === 'string') return value.trim();
-        if (value instanceof Date && !Number.isNaN(value.getTime())) return getLocalDateString(value);
-        if (typeof value.toDate === 'function') {
-            const d = value.toDate();
-            return d && !Number.isNaN(d.getTime()) ? getLocalDateString(d) : '';
-        }
-        if (typeof value === 'number' && Number.isFinite(value)) {
-            // Excel serial date support (common in restored spreadsheets).
-            if (value > 20000 && value < 80000) {
-                const d = new Date(Date.UTC(1899, 11, 30) + value * 86400000);
-                return getLocalDateString(d);
-            }
-            return String(value);
-        }
-        return String(value).trim();
-    }
-
-    function dateSortValue(value) {
-        const normalized = normalizeTransactionDate(value);
-        if (!normalized) return Number.POSITIVE_INFINITY;
-        const direct = Date.parse(normalized);
-        if (Number.isFinite(direct)) return direct;
-        const match = normalized.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
-        if (match) return Date.UTC(+match[1], +match[2] - 1, +match[3]);
-        return Number.POSITIVE_INFINITY;
-    }
-
     function renderHistory(transactions) {
         const historyContainer = document.getElementById('history-container');
         if (!historyContainer) return;
 
-        const rows = [...transactions]
-            .map(t => ({ ...t, date: normalizeTransactionDate(t.date) }))
-            .filter(t => t.date)
-            .sort((a, b) => {
-                const diff = dateSortValue(a.date) - dateSortValue(b.date);
-                return Number.isFinite(diff) && diff !== 0 ? diff : String(a.date).localeCompare(String(b.date));
-            });
+        const rows = [...transactions].sort((a, b) => String(a.date).localeCompare(String(b.date)));
         let runningOpeningStock = Number(baseOpeningStock) || 0;
 
         if (!rows.length) {
@@ -1119,19 +1072,14 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
                         itemData = fallback.data() || {};
                         itemDocId = fallback.id;
                     } else {
-                        // Support older imported Excel schemas without downloading the whole collection.
-                        const legacyFields = ['material_code', 'materialcode', 'MaterialCode', 'code', 'Code', 'itemCode', 'item_code'];
-                        for (const field of legacyFields) {
-                            const legacySnap = await db.collection('items')
-                                .where(field, '==', currentMaterialCode)
-                                .limit(1)
-                                .get();
-                            if (!legacySnap.empty) {
-                                const fallback = legacySnap.docs[0];
-                                itemData = fallback.data() || {};
-                                itemDocId = fallback.id;
-                                break;
-                            }
+                        const allSnap = await db.collection('items').get();
+                        const found = allSnap.docs.find(doc => {
+                            const code = getItemCode(doc.data(), doc.id);
+                            return normalizeSearchValue(code) === normalizeSearchValue(currentMaterialCode);
+                        });
+                        if (found) {
+                            itemData = found.data() || {};
+                            itemDocId = found.id;
                         }
                     }
                 }
@@ -1148,89 +1096,25 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
                 safeDocId = itemDocId;
             }
 
-            // Always keep the displayed/requested code stable; transactions use this exact code.
-
             if (requestId !== binCardRequestId) return;
 
             document.getElementById('display-mat-name').innerText =
                 getItemName(itemData) || 'Unnamed Material';
 
-            baseOpeningStock = toNumber(
-                itemData.openingStock ??
-                itemData.opening_stock ??
-                itemData.OpeningStock ??
-                itemData.openingstock ??
-                0
-            );
+            baseOpeningStock = toNumber(itemData.openingStock);
             document.getElementById('display-op-stock').innerText = formatNumber(baseOpeningStock);
 
-            // Read both the current schema and common legacy/imported schemas.
-            // Results are merged and de-duplicated so Movement History still works
-            // when older Excel-restored records use a different field name.
-            const transactionSnapshots = [];
-            const transactionQueries = [
-                ['materialCode', currentMaterialCode],
-                ['material_code', currentMaterialCode],
-                ['materialcode', currentMaterialCode],
-                ['MaterialCode', currentMaterialCode],
-                ['code', currentMaterialCode],
-                ['itemCode', currentMaterialCode]
-            ];
-
-            // If the material code is numeric in an older dataset, query that form too.
-            const numericCode = Number(currentMaterialCode);
-            if (currentMaterialCode !== '' && Number.isFinite(numericCode) && String(numericCode) === currentMaterialCode) {
-                transactionQueries.push(['materialCode', numericCode]);
-                transactionQueries.push(['material_code', numericCode]);
-            }
-
-            const queryResults = await Promise.all(transactionQueries.map(async ([field, value]) => {
-                try {
-                    return await db.collection('transactions')
-                        .where(field, '==', value)
-                        .get();
-                } catch (queryError) {
-                    // Missing/unused legacy fields can safely be skipped.
-                    console.warn(`Transaction query skipped (${field}):`, queryError);
-                    return null;
-                }
-            }));
-
-            if (requestId !== binCardRequestId) return;
-            queryResults.forEach(snap => {
-                if (snap) transactionSnapshots.push(snap);
-            });
-
-            const transactionMap = new Map();
-            transactionSnapshots.forEach(snapshot => {
-                snapshot.forEach(doc => {
-                    const data = doc.data() || {};
-                    const key = doc.id;
-                    const existing = transactionMap.get(key);
-                    if (!existing) {
-                        transactionMap.set(key, { id: doc.id, ...data });
-                    } else {
-                        // Merge duplicate legacy/current matches without double-counting.
-                        existing.receive = toNumber(existing.receive ?? existing.Receive) || toNumber(data.receive ?? data.Receive);
-                        existing.issue = toNumber(existing.issue ?? existing.Issue) || toNumber(data.issue ?? data.Issue);
-                        existing.return = toNumber(existing.return ?? existing.Return ?? existing.returnQty) || toNumber(data.return ?? data.Return ?? data.returnQty);
-                        existing.date = existing.date || data.date || data.Date;
-                    }
-                });
-            });
+            // One transaction query only.
+            const snapshot = await db.collection('transactions')
+                .where('materialCode', '==', currentMaterialCode)
+                .get();
 
             if (requestId !== binCardRequestId) return;
 
-            currentTransactions = [...transactionMap.values()]
-                .map(t => ({
-                    ...t,
-                    date: normalizeTransactionDate(t.date ?? t.Date),
-                    receive: toNumber(t.receive ?? t.Receive ?? t.received ?? t.Received),
-                    issue: toNumber(t.issue ?? t.Issue ?? t.issued ?? t.Issued),
-                    return: toNumber(t.return ?? t.Return ?? t.returnQty ?? t.ReturnQty ?? t.returns)
-                }))
+            currentTransactions = snapshot.docs
+                .map(doc => ({ id: doc.id, ...(doc.data() || {}) }))
                 .filter(t => t.date)
-                .sort((a, b) => dateSortValue(a.date) - dateSortValue(b.date));
+                .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
             // Render after the browser gets a frame, keeping interaction smooth.
             cancelAnimationFrame(historyRenderFrame);
@@ -1282,8 +1166,6 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     }
 
     async function saveTransactionRecord() {
-        if (isSavingTransaction) return;
-
         if (!currentMaterialCode || !safeDocId) {
             Swal.fire('Error', 'Material Code එක හඳුනාගත නොහැක.', 'error');
             return;
@@ -1320,10 +1202,6 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 
         const docId = `${safeDocId}_${dateVal}`;
 
-        isSavingTransaction = true;
-        const saveButton = document.getElementById('save-transaction');
-        if (saveButton) saveButton.disabled = true;
-
         try {
             Swal.fire({
                 title: 'Saving...',
@@ -1350,7 +1228,7 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
                 showConfirmButton: false
             });
 
-            await loadItemBinCard(false, true);
+            await loadItemBinCard(false);
         } catch (err) {
             console.error('Save Data Error:', err);
 
@@ -1359,9 +1237,6 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
             } else {
                 Swal.fire('Error', 'දෝෂයක් සිදු විය: ' + (err.message || err), 'error');
             }
-        } finally {
-            isSavingTransaction = false;
-            if (saveButton) saveButton.disabled = false;
         }
     }
 
@@ -1387,14 +1262,10 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 
     async function loadFromHash() {
         const hash = window.location.hash || '';
-        const hashParams = new URLSearchParams(hash.replace(/^#/, ''));
-        const urlParams = new URLSearchParams(window.location.search || '');
-        const token = hashParams.get('item');
-        const queryCode = (urlParams.get('code') || '').trim();
+        const params = new URLSearchParams(hash.replace(/^#/, ''));
+        const token = params.get('item');
 
-        // A plain ?code= link is supported as a reliable Search fallback.
-        // If both exist, the encrypted token is preferred.
-        if (!token && !queryCode) {
+        if (!token) {
             currentMaterialCode = '';
             safeDocId = '';
             document.getElementById('display-mat-name').innerText = 'Code Missing!';
@@ -1402,25 +1273,16 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
             return;
         }
 
-        const navigationId = ++binCardRequestId;
-        cancelAnimationFrame(historyRenderFrame);
+        showInitialLoadingState();
+        currentMaterialCode = await decryptItemToken(token);
+        safeDocId = currentMaterialCode.replace(/\//g, '_');
         currentItemData = null;
         currentTransactions = [];
-        showInitialLoadingState();
-
-        let decodedCode = '';
-        if (token) decodedCode = await decryptItemToken(token);
-        if (!decodedCode && queryCode) decodedCode = queryCode;
-
-        if (navigationId !== binCardRequestId) return;
-
-        currentMaterialCode = String(decodedCode || '').trim();
-        safeDocId = currentMaterialCode.replace(/\//g, '_');
 
         if (!currentMaterialCode) {
             document.getElementById('display-mat-name').innerText = 'Invalid Item Link';
             document.getElementById('display-mat-code').innerText = '---';
-            Swal.fire('Invalid Link', 'Item URL එක valid නොවේ.', 'error');
+            Swal.fire('Invalid Link', 'Item URL token එක valid නොවේ.', 'error');
             return;
         }
 
