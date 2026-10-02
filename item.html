@@ -22,15 +22,16 @@
             <h1 class="text-xl font-bold flex items-center gap-2">
                 <i class="fas fa-clipboard-list"></i> Item Bin Card Details
             </h1>
-            <a href="admin.html" class="text-xs bg-blue-800 hover:bg-blue-900 text-white px-3 py-2 rounded-lg transition border border-blue-400 flex items-center gap-1">
-                <i class="fas fa-arrow-left"></i> Admin Panel
+            <!-- Back button points to index.html -->
+            <a href="index.html" class="text-xs bg-blue-800 hover:bg-blue-900 text-white px-3 py-2 rounded-lg transition border border-blue-400 flex items-center gap-1">
+                <i class="fas fa-arrow-left"></i> Home (Admin)
             </a>
         </div>
     </header>
 
     <main class="container mx-auto px-4 max-w-4xl pb-12">
         
-        <!-- Details Card -->
+        <!-- Detail Card -->
         <div class="bg-white rounded-xl shadow-md p-6 mb-6 relative border-t-4 border-blue-600">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pr-12">
                 <div>
@@ -44,14 +45,14 @@
                 </div>
             </div>
 
-            <!-- Edit Button -->
+            <!-- Edit Button for Modal -->
             <button onclick="openModal()" title="Add or Edit Movement" 
                 class="absolute top-6 right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition transform hover:scale-105 active:scale-95">
                 <i class="fas fa-pen text-lg"></i>
             </button>
         </div>
 
-        <!-- Bin Card Movements Table -->
+        <!-- Bin Card Daily Movements Table -->
         <div class="bg-white rounded-xl shadow-md overflow-hidden">
             <div class="p-4 bg-gray-800 text-white flex justify-between items-center">
                 <h3 class="font-bold text-base flex items-center gap-2">
@@ -83,7 +84,7 @@
 
     </main>
 
-    <!-- Modal Form -->
+    <!-- Modal Form (Data Entry) -->
     <div id="transaction-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-50 px-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
             
@@ -135,7 +136,9 @@
     </div>
 
     <script>
+        // ==========================================
         // FIREBASE CONFIGURATION
+        // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyDUbL9Q28whHtrJ1Q-J1HzFO-ybQa11y0U",
             authDomain: "qr-to-bin-card.firebaseapp.com",
@@ -149,13 +152,15 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
+        // Get Material Code from URL (?code=MAT01)
         const urlParams = new URLSearchParams(window.location.search);
         const rawCode = urlParams.get('code');
         const currentMaterialCode = rawCode ? rawCode.trim() : "";
-        const safeDocId = currentMaterialCode.replace(/\//g, '_');
+        const safeDocId = currentMaterialCode.replace(/\//g, '_'); // Safe ID for Firestore Document Fetch
 
         let baseOpeningStock = 0;
 
+        // Fetch Data and Render Bin Card
         async function loadItemBinCard() {
             if (!currentMaterialCode) {
                 Swal.fire('Error', 'Material Code එකක් ලබාදී නොමැත. කරුණාකර Admin Panel හරහා හෝ QR Code එක scan කර පිවිසෙන්න.', 'error');
@@ -166,6 +171,7 @@
             document.getElementById('display-mat-code').innerText = currentMaterialCode;
 
             try {
+                // Fetch Base Item Details
                 const itemDoc = await db.collection('items').doc(safeDocId).get();
                 if (!itemDoc.exists) {
                     document.getElementById('display-mat-name').innerText = "Item Not Found";
@@ -178,6 +184,7 @@
                 baseOpeningStock = itemData.openingStock !== undefined ? Number(itemData.openingStock) : 0;
                 document.getElementById('display-op-stock').innerText = baseOpeningStock;
 
+                // Fetch Daily Movement History
                 const snapshot = await db.collection('transactions')
                     .where('materialCode', '==', currentMaterialCode)
                     .orderBy('date', 'asc')
@@ -200,12 +207,14 @@
                     return;
                 }
 
+                // Render Table Rows
                 snapshot.forEach(doc => {
                     const trx = doc.data();
                     const r = Number(trx.receive || 0);
                     const i = Number(trx.issue || 0);
                     const ret = Number(trx.return || 0);
 
+                    // LOGIC: Closing Stock = Opening Stock + Receive + Return - Issue
                     const closingStock = runningOpeningStock + r + ret - i;
 
                     const tr = document.createElement('tr');
@@ -220,6 +229,7 @@
                     `;
                     tbody.appendChild(tr);
 
+                    // Next Row's Opening Stock is Current Row's Closing Stock
                     runningOpeningStock = closingStock;
                 });
 
@@ -233,6 +243,7 @@
             }
         }
 
+        // Modal Handlers
         function openModal() {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('input-date').value = today;
@@ -246,6 +257,7 @@
             document.getElementById('transaction-modal').classList.add('hidden');
         }
 
+        // Save Transaction to Firebase
         async function saveTransactionRecord() {
             const dateVal = document.getElementById('input-date').value;
             const receiveVal = Number(document.getElementById('input-receive').value) || 0;
@@ -258,15 +270,16 @@
             }
 
             if (receiveVal === 0 && issueVal === 0 && returnVal === 0) {
-                Swal.fire('Warning', 'කරුණාකර අවම වශයෙන් එක් අගයක්වත් ඇතුලත් කරන්න.', 'warning');
+                Swal.fire('Warning', 'කරුණාකර අවම වශයෙන් එක් අගයක්වත් (Receive, Issue හෝ Return) ඇතුලත් කරන්න.', 'warning');
                 return;
             }
 
-            const docId = `${safeDocId}_${dateVal}`;
+            const docId = `${safeDocId}_${dateVal}`; // Format: MAT001_2026-10-02
 
             try {
                 Swal.fire({ title: 'Saving Record...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
+                // FieldValue.increment adds to the existing value if the document already exists for that day.
                 await db.collection('transactions').doc(docId).set({
                     materialCode: currentMaterialCode,
                     date: dateVal,
@@ -284,6 +297,7 @@
                     showConfirmButton: false
                 });
 
+                // Reload the table data to calculate the new closing stocks
                 loadItemBinCard();
 
             } catch (err) {
@@ -296,6 +310,7 @@
             }
         }
 
+        // Init
         window.addEventListener('DOMContentLoaded', loadItemBinCard);
     </script>
 </body>
