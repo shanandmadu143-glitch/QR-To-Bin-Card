@@ -24,7 +24,6 @@
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans min-h-screen">
 
-    <!-- Header -->
     <header class="bg-blue-700 text-white shadow-lg py-4 px-6 mb-6">
         <div class="container mx-auto flex justify-between items-center">
             <h1 class="text-2xl font-bold flex items-center gap-2">
@@ -36,10 +35,7 @@
 
     <main class="container mx-auto px-4 max-w-6xl pb-12">
         
-        <!-- Drag & Drop Upload Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            
-            <!-- 1. Items Upload Drag & Drop -->
             <div class="bg-white rounded-xl shadow-md p-6">
                 <h2 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
                     <i class="fas fa-file-excel text-green-600"></i> 1. Upload Items (.xlsx)
@@ -55,7 +51,6 @@
                 </div>
             </div>
 
-            <!-- 2. Opening Stock Upload Drag & Drop -->
             <div class="bg-white rounded-xl shadow-md p-6">
                 <h2 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
                     <i class="fas fa-cubes text-blue-600"></i> 2. Upload Opening Stock (.xlsx)
@@ -70,10 +65,8 @@
                     <input type="file" id="file-input-stock" accept=".xlsx, .xls" class="hidden">
                 </div>
             </div>
-
         </div>
 
-        <!-- Registered Items & QR Table -->
         <div class="bg-white rounded-xl shadow-md p-6">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b pb-4">
                 <div>
@@ -109,9 +102,6 @@
     </main>
 
     <script>
-        // ==========================================
-        // FIREBASE CONFIGURATION 
-        // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyDUbL9Q28whHtrJ1Q-J1HzFO-ybQa11y0U",
             authDomain: "qr-to-bin-card.firebaseapp.com",
@@ -125,7 +115,6 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // Setup Drag & Drop Listeners
         function setupDragAndDrop(zoneId, inputId, handleFileFn) {
             const dropZone = document.getElementById(zoneId);
             const fileInput = document.getElementById(inputId);
@@ -153,7 +142,6 @@
         setupDragAndDrop('drop-zone-items', 'file-input-items', processItemsExcel);
         setupDragAndDrop('drop-zone-stock', 'file-input-stock', processStockExcel);
 
-        // Safe Excel Reader Function
         function readExcelFile(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -166,7 +154,6 @@
                         }
                         const firstSheetName = workbook.SheetNames[0];
                         const worksheet = workbook.Sheets[firstSheetName];
-                        // defval: "" ensures array indices do not shift for empty cells
                         const json = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
                         resolve(json);
                     } catch (err) {
@@ -178,7 +165,6 @@
             });
         }
 
-        // 1. Process Items Excel (B = Code, C = Name)
         async function processItemsExcel(file) {
             try {
                 Swal.fire({ title: 'Processing Items...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
@@ -194,7 +180,7 @@
                     const name = row[2] !== undefined ? String(row[2]).trim() : "";
 
                     if (code !== "") {
-                        const safeDocId = code.replace(/\//g, '_'); // Fix Firestore path bug
+                        const safeDocId = code.replace(/\//g, '_'); 
                         try {
                             await db.collection('items').doc(safeDocId).set({
                                 materialCode: code,
@@ -221,7 +207,6 @@
             }
         }
 
-        // 2. Process Opening Stock Excel (B = Code, C = Name, E = Opening Stock)
         async function processStockExcel(file) {
             try {
                 Swal.fire({ title: 'Updating Opening Stock...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
@@ -269,7 +254,6 @@
             }
         }
 
-        // Load Data to Table and Generate QR Codes
         async function loadItemsFromFirebase() {
             const tbody = document.getElementById('items-table-body');
             tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-gray-500">Loading data...</td></tr>`;
@@ -283,7 +267,6 @@
 
                 tbody.innerHTML = '';
                 
-                // Base URL setup to point to item.html correctly
                 const currentUrl = window.location.href;
                 let baseUrl = currentUrl.split('?')[0].replace('index.html', '').replace(/\/$/, '') + '/item.html';
 
