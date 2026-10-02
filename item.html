@@ -2,8 +2,9 @@
 <html lang="si">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Item Bin Card</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Item Bin Card - Pro UI</title>
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome Icons -->
@@ -13,124 +14,160 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-</head>
-<body class="bg-gray-100 text-gray-800 font-sans min-h-screen">
+    
+    <!-- Custom Animations & Styles -->
+    <style>
+        body { background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
+        
+        .fade-in {
+            animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        
+        @keyframes fadeIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
 
-    <!-- Header -->
-    <header class="bg-blue-700 text-white shadow-md py-4 px-6 mb-6">
-        <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold flex items-center gap-2">
-                <i class="fas fa-clipboard-list"></i> Item Bin Card Details
+        /* Delay for list items */
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+
+        /* Modern Glassmorphism Modal */
+        .modal-glass {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        
+        /* Floating Action Button (FAB) Pulse effect */
+        .fab-pulse {
+            animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.5); }
+            70% { box-shadow: 0 0 0 15px rgba(37, 99, 235, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+        }
+    </style>
+</head>
+<body class="font-sans text-gray-800 antialiased selection:bg-blue-200">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-gradient-to-r from-blue-800 to-blue-600 text-white shadow-lg sticky top-0 z-40">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <h1 class="text-lg md:text-xl font-bold flex items-center gap-2 tracking-wide">
+                <i class="fas fa-layer-group text-blue-200"></i> Bin Card Details
             </h1>
-            <a href="index.html" class="text-xs bg-blue-800 hover:bg-blue-900 text-white px-3 py-2 rounded-lg transition border border-blue-400 flex items-center gap-1">
-                <i class="fas fa-arrow-left"></i> Home (Admin)
+            <a href="index.html" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                <i class="fas fa-home"></i> <span class="hidden sm:inline">Admin Home</span>
             </a>
         </div>
     </header>
 
-    <main class="container mx-auto px-4 max-w-4xl pb-12">
+    <main class="container mx-auto px-4 max-w-4xl pb-24 pt-6">
         
-        <!-- Detail Card -->
-        <div class="bg-white rounded-xl shadow-md p-6 mb-6 relative border-t-4 border-blue-600">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pr-12">
+        <!-- Hero Details Card -->
+        <div class="bg-white rounded-2xl shadow-xl p-5 md:p-8 mb-8 relative border-t-4 border-blue-500 fade-in overflow-hidden">
+            <!-- Decorative background element -->
+            <div class="absolute -right-10 -top-10 text-blue-50 opacity-50 pointer-events-none">
+                <i class="fas fa-box-open" style="font-size: 150px;"></i>
+            </div>
+            
+            <div class="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
-                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-2.5 py-1 rounded">Material Details</span>
-                    <h2 class="text-2xl font-extrabold text-gray-900 mt-2" id="display-mat-name">Loading...</h2>
-                    <p class="text-sm text-gray-600 mt-1">Material Code: <span class="font-bold text-blue-700" id="display-mat-code">---</span></p>
+                    <div class="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-3 shadow-sm border border-blue-100">
+                        <i class="fas fa-tag"></i> Material Info
+                    </div>
+                    <h2 class="text-2xl md:text-3xl font-extrabold text-gray-900 leading-tight" id="display-mat-name">Loading...</h2>
+                    <div class="mt-2 flex items-center gap-2 text-gray-500 bg-gray-50 inline-block px-3 py-1.5 rounded-lg border">
+                        <i class="fas fa-barcode"></i> 
+                        <span class="font-mono font-bold text-gray-700" id="display-mat-code">---</span>
+                    </div>
                 </div>
-                <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-right">
-                    <p class="text-xs text-green-700 font-semibold">Base Opening Stock</p>
-                    <p class="text-2xl font-extrabold text-green-800" id="display-op-stock">0</p>
+                
+                <div class="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-2xl p-4 text-center md:text-right min-w-[140px] shadow-sm transform hover:scale-105 transition duration-300">
+                    <p class="text-xs text-green-700 font-bold uppercase tracking-wider mb-1">Base Op. Stock</p>
+                    <p class="text-3xl md:text-4xl font-black text-green-800" id="display-op-stock">0</p>
                 </div>
             </div>
-
-            <!-- Edit Button for Modal -->
-            <button onclick="openModal()" title="Add or Edit Movement" 
-                class="absolute top-6 right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition transform hover:scale-105 active:scale-95">
-                <i class="fas fa-pen text-lg"></i>
-            </button>
         </div>
 
-        <!-- Bin Card Daily Movements Table -->
-        <div class="bg-white rounded-xl shadow-md overflow-hidden">
-            <div class="p-4 bg-gray-800 text-white flex justify-between items-center">
-                <h3 class="font-bold text-base flex items-center gap-2">
-                    <i class="fas fa-history text-yellow-400"></i> Daily Movement History
-                </h3>
-                <span class="text-xs text-gray-300">Ordered by Date</span>
-            </div>
+        <!-- History Section Title -->
+        <div class="flex items-center gap-3 mb-4 px-1 fade-in delay-1">
+            <div class="h-8 w-1 bg-yellow-400 rounded-full"></div>
+            <h3 class="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-history text-gray-400"></i> Movement History
+            </h3>
+        </div>
 
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-sm">
-                    <thead>
-                        <tr class="bg-gray-100 text-gray-700 border-b border-gray-200">
-                            <th class="p-3 font-semibold">Date</th>
-                            <th class="p-3 font-semibold text-right">Op. Stock</th>
-                            <th class="p-3 font-semibold text-right text-green-600">Receive (+)</th>
-                            <th class="p-3 font-semibold text-right text-red-600">Issue (-)</th>
-                            <th class="p-3 font-semibold text-right text-blue-600">Return (+)</th>
-                            <th class="p-3 font-semibold text-right text-purple-700 bg-purple-50">Closing Stock</th>
-                        </tr>
-                    </thead>
-                    <tbody id="bincard-table-body" class="divide-y divide-gray-200">
-                        <tr>
-                            <td colspan="6" class="p-6 text-center text-gray-400">Loading bin card records...</td>
-                        </tr>
-                    </tbody>
-                </table>
+        <!-- Dynamic Container for History (Cards on Mobile, Table on Desktop) -->
+        <div id="history-container" class="fade-in delay-2">
+            <!-- Loading State -->
+            <div class="bg-white rounded-2xl shadow-md p-8 text-center text-gray-400 border border-gray-100">
+                <i class="fas fa-spinner fa-spin text-3xl mb-3 text-blue-500"></i>
+                <p>Loading records...</p>
             </div>
         </div>
 
     </main>
 
-    <!-- Modal Form (Data Entry) -->
-    <div id="transaction-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-50 px-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+    <!-- Floating Action Button (FAB) for Mobile & Desktop -->
+    <button onclick="openModal()" 
+        class="fixed bottom-6 right-6 md:bottom-10 md:right-10 bg-blue-600 hover:bg-blue-700 text-white rounded-full w-14 h-14 md:w-16 md:h-16 flex items-center justify-center shadow-2xl transition transform hover:scale-110 active:scale-95 z-40 fab-pulse"
+        title="Add Movement">
+        <i class="fas fa-plus text-2xl"></i>
+    </button>
+
+    <!-- Modern Glass Modal -->
+    <div id="transaction-modal" class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm hidden flex items-end md:items-center justify-center z-50 transition-opacity duration-300 opacity-0">
+        <div class="modal-glass w-full max-w-md rounded-t-3xl md:rounded-2xl shadow-2xl overflow-hidden transform translate-y-full md:translate-y-10 transition-transform duration-300" id="modal-content">
             
-            <div class="bg-blue-700 p-4 text-white flex justify-between items-center">
-                <h3 class="font-bold text-lg flex items-center gap-2">
-                    <i class="fas fa-plus-circle"></i> Add / Update Movement
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b flex justify-between items-center bg-white/50">
+                <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
+                    <div class="bg-blue-100 text-blue-600 p-2 rounded-lg"><i class="fas fa-pen"></i></div>
+                    Update Stock
                 </h3>
-                <button onclick="closeModal()" class="text-white hover:text-gray-200 transition">
-                    <i class="fas fa-times text-xl"></i>
+                <button onclick="closeModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-full w-8 h-8 flex items-center justify-center transition">
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
 
-            <div class="p-6">
-                <p class="text-xs text-gray-500 mb-4">
-                    එකම දිනයට අගයන් නැවත ඇතුලත් කළ විට, පැවති අගයන්ට එකතු (Add) වී closing stock එක ස්වයංක්‍රීයව සකස් වේ.
-                </p>
-
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">Select Date</label>
-                        <input type="date" id="input-date" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-green-700 mb-1">Receive Quantity (ලැබුණු ප්‍රමාණය)</label>
-                        <input type="number" id="input-receive" min="0" value="0" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-green-500 outline-none">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-red-700 mb-1">Issue Quantity (නිකුත් කළ ප්‍රමාණය)</label>
-                        <input type="number" id="input-issue" min="0" value="0" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-red-500 outline-none">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-blue-700 mb-1">Return Quantity (ආපසු පැමිණි ප්‍රමාණය)</label>
-                        <input type="number" id="input-return" min="0" value="0" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            <!-- Modal Body -->
+            <div class="p-6 bg-white/80">
+                <div class="mb-5">
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Select Date</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
+                            <i class="fas fa-calendar-alt"></i>
+                        </div>
+                        <input type="date" id="input-date" class="w-full border-2 border-gray-200 rounded-xl pl-10 p-3 text-sm font-semibold focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none transition bg-white shadow-sm">
                     </div>
                 </div>
 
-                <div class="mt-6 flex gap-3">
-                    <button onclick="closeModal()" class="w-1/2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2.5 rounded-lg text-sm transition">Cancel</button>
-                    <button onclick="saveTransactionRecord()" class="w-1/2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg text-sm transition shadow flex justify-center items-center gap-2">
-                        <i class="fas fa-save"></i> Save Record
-                    </button>
+                <div class="grid grid-cols-3 gap-3 mb-6">
+                    <!-- Receive -->
+                    <div class="bg-green-50 p-3 rounded-xl border border-green-100 text-center">
+                        <label class="block text-[10px] font-bold text-green-700 uppercase tracking-wide mb-1"><i class="fas fa-arrow-down mb-1 text-sm block"></i> Receive</label>
+                        <input type="number" id="input-receive" min="0" value="0" class="w-full bg-white border border-green-200 rounded-lg p-2 text-center font-bold text-green-700 focus:outline-none focus:border-green-500 shadow-inner">
+                    </div>
+                    <!-- Issue -->
+                    <div class="bg-red-50 p-3 rounded-xl border border-red-100 text-center">
+                        <label class="block text-[10px] font-bold text-red-700 uppercase tracking-wide mb-1"><i class="fas fa-arrow-up mb-1 text-sm block"></i> Issue</label>
+                        <input type="number" id="input-issue" min="0" value="0" class="w-full bg-white border border-red-200 rounded-lg p-2 text-center font-bold text-red-700 focus:outline-none focus:border-red-500 shadow-inner">
+                    </div>
+                    <!-- Return -->
+                    <div class="bg-blue-50 p-3 rounded-xl border border-blue-100 text-center">
+                        <label class="block text-[10px] font-bold text-blue-700 uppercase tracking-wide mb-1"><i class="fas fa-undo mb-1 text-sm block"></i> Return</label>
+                        <input type="number" id="input-return" min="0" value="0" class="w-full bg-white border border-blue-200 rounded-lg p-2 text-center font-bold text-blue-700 focus:outline-none focus:border-blue-500 shadow-inner">
+                    </div>
                 </div>
+
+                <button onclick="saveTransactionRecord()" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3.5 rounded-xl text-sm transition shadow-lg shadow-blue-500/30 flex justify-center items-center gap-2 transform active:scale-95">
+                    <i class="fas fa-check-circle"></i> Save Movement
+                </button>
             </div>
-
         </div>
     </div>
 
@@ -161,14 +198,14 @@
         async function loadItemBinCard() {
             if (!currentMaterialCode) {
                 Swal.fire('Error', 'Material Code එකක් ලබාදී නොමැත. කරුණාකර Admin Panel හරහා හෝ QR Code එක scan කර පිවිසෙන්න.', 'error');
-                document.getElementById('display-mat-name').innerText = "Material Code Missing";
+                document.getElementById('display-mat-name').innerText = "Code Missing!";
                 return;
             }
 
             document.getElementById('display-mat-code').innerText = currentMaterialCode;
 
             try {
-                // Fetch Item Base details
+                // Fetch Data
                 const itemDoc = await db.collection('items').doc(safeDocId).get();
                 if (!itemDoc.exists) {
                     document.getElementById('display-mat-name').innerText = "Item Not Found";
@@ -181,80 +218,179 @@
                 baseOpeningStock = itemData.openingStock !== undefined ? Number(itemData.openingStock) : 0;
                 document.getElementById('display-op-stock').innerText = baseOpeningStock;
 
-                // BUG FIX: Removed orderBy('date', 'asc') to fix Firebase Index error. Data is sorted in JS.
                 const snapshot = await db.collection('transactions')
                     .where('materialCode', '==', currentMaterialCode)
                     .get();
 
-                const tbody = document.getElementById('bincard-table-body');
-                tbody.innerHTML = '';
+                const historyContainer = document.getElementById('history-container');
                 let runningOpeningStock = baseOpeningStock;
 
                 if (snapshot.empty) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="6" class="p-6 text-center text-gray-500">
-                                කිසිදු දෛනික චලනයක් ඇතුලත් කර නොමැත.<br>
-                                දැනට පවතින Closing Stock: <b class="text-purple-700">${runningOpeningStock}</b>
-                            </td>
-                        </tr>
+                    historyContainer.innerHTML = `
+                        <div class="bg-white rounded-2xl shadow-sm p-8 text-center text-gray-500 border border-gray-100 flex flex-col items-center justify-center">
+                            <div class="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mb-3">
+                                <i class="fas fa-folder-open text-2xl text-gray-300"></i>
+                            </div>
+                            <p class="font-medium">කිසිදු දෛනික චලනයක් (Movements) නැත.</p>
+                            <p class="text-sm mt-1">දැනට පවතින Closing Stock: <b class="text-blue-600">${runningOpeningStock}</b></p>
+                        </div>
                     `;
                     return;
                 }
 
-                // Push data to array and Sort by date in Javascript (Fixes the Index Issue)
+                // Sorting
                 let transactions = [];
-                snapshot.forEach(doc => {
-                    transactions.push(doc.data());
-                });
-
+                snapshot.forEach(doc => { transactions.push(doc.data()); });
                 transactions.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-                // Render Table Rows
-                transactions.forEach(trx => {
-                    const r = Number(trx.receive || 0);
-                    const i = Number(trx.issue || 0);
-                    const ret = Number(trx.return || 0);
+                // Identify if device is mobile or desktop for responsive rendering
+                const isMobile = window.innerWidth < 768;
+                
+                let htmlContent = '';
 
-                    // Closing Stock = Opening Stock + Receive + Return - Issue
-                    const closingStock = runningOpeningStock + r + ret - i;
+                if (isMobile) {
+                    // ==========================================
+                    // MOBILE UI: Card Based Layout
+                    // ==========================================
+                    htmlContent = `<div class="space-y-4">`;
+                    transactions.forEach(trx => {
+                        const r = Number(trx.receive || 0);
+                        const i = Number(trx.issue || 0);
+                        const ret = Number(trx.return || 0);
+                        const closingStock = runningOpeningStock + r + ret - i;
 
-                    const tr = document.createElement('tr');
-                    tr.className = "hover:bg-gray-50 transition border-b";
-                    tr.innerHTML = `
-                        <td class="p-3 font-semibold text-gray-800">${trx.date}</td>
-                        <td class="p-3 text-right font-medium text-gray-600">${runningOpeningStock}</td>
-                        <td class="p-3 text-right font-bold text-green-600">${r > 0 ? '+' + r : '0'}</td>
-                        <td class="p-3 text-right font-bold text-red-600">${i > 0 ? '-' + i : '0'}</td>
-                        <td class="p-3 text-right font-bold text-blue-600">${ret > 0 ? '+' + ret : '0'}</td>
-                        <td class="p-3 text-right font-extrabold text-purple-800 bg-purple-50">${closingStock}</td>
+                        htmlContent += `
+                            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 relative overflow-hidden transition-all hover:shadow-md">
+                                <!-- Top: Date & Op Stock -->
+                                <div class="flex justify-between items-center mb-3 border-b border-gray-50 pb-2">
+                                    <div class="flex items-center gap-2">
+                                        <div class="bg-blue-100 text-blue-600 p-1.5 rounded-lg"><i class="fas fa-calendar-day text-xs"></i></div>
+                                        <span class="font-bold text-gray-800 text-sm">${trx.date}</span>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Op. Stock</span>
+                                        <span class="font-semibold text-gray-600">${runningOpeningStock}</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Middle: Movements (Flex layout) -->
+                                <div class="flex justify-between items-center bg-gray-50 rounded-xl p-3 mb-3">
+                                    <div class="text-center w-1/3 border-r border-gray-200">
+                                        <span class="text-[10px] text-green-600 font-bold uppercase block mb-1">Rec (+)</span>
+                                        <span class="font-black text-green-600">${r > 0 ? r : '-'}</span>
+                                    </div>
+                                    <div class="text-center w-1/3 border-r border-gray-200">
+                                        <span class="text-[10px] text-red-600 font-bold uppercase block mb-1">Iss (-)</span>
+                                        <span class="font-black text-red-600">${i > 0 ? i : '-'}</span>
+                                    </div>
+                                    <div class="text-center w-1/3">
+                                        <span class="text-[10px] text-blue-500 font-bold uppercase block mb-1">Ret (+)</span>
+                                        <span class="font-black text-blue-500">${ret > 0 ? ret : '-'}</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Bottom: Closing Stock Highlight -->
+                                <div class="flex justify-between items-center bg-blue-600 text-white rounded-xl p-3 shadow-inner">
+                                    <span class="text-xs font-bold uppercase tracking-wider">Closing Stock</span>
+                                    <span class="text-xl font-black">${closingStock}</span>
+                                </div>
+                            </div>
+                        `;
+                        runningOpeningStock = closingStock;
+                    });
+                    htmlContent += `</div>`;
+                } else {
+                    // ==========================================
+                    // DESKTOP UI: Modern Table Layout
+                    // ==========================================
+                    htmlContent = `
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider border-b border-gray-200">
+                                        <th class="p-4 font-bold">Date</th>
+                                        <th class="p-4 font-bold text-right">Op. Stock</th>
+                                        <th class="p-4 font-bold text-center text-green-600"><i class="fas fa-arrow-down"></i> Receive</th>
+                                        <th class="p-4 font-bold text-center text-red-600"><i class="fas fa-arrow-up"></i> Issue</th>
+                                        <th class="p-4 font-bold text-center text-blue-500"><i class="fas fa-undo"></i> Return</th>
+                                        <th class="p-4 font-bold text-right text-gray-800 bg-gray-100">Closing Stock</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100 text-sm">
                     `;
-                    tbody.appendChild(tr);
+                    
+                    transactions.forEach(trx => {
+                        const r = Number(trx.receive || 0);
+                        const i = Number(trx.issue || 0);
+                        const ret = Number(trx.return || 0);
+                        const closingStock = runningOpeningStock + r + ret - i;
 
-                    runningOpeningStock = closingStock;
-                });
+                        htmlContent += `
+                            <tr class="hover:bg-blue-50/50 transition-colors">
+                                <td class="p-4 font-semibold text-gray-800">${trx.date}</td>
+                                <td class="p-4 text-right font-medium text-gray-500">${runningOpeningStock}</td>
+                                <td class="p-4 text-center">
+                                    ${r > 0 ? `<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full font-bold text-xs">+${r}</span>` : '<span class="text-gray-300">-</span>'}
+                                </td>
+                                <td class="p-4 text-center">
+                                    ${i > 0 ? `<span class="bg-red-100 text-red-700 px-3 py-1 rounded-full font-bold text-xs">-${i}</span>` : '<span class="text-gray-300">-</span>'}
+                                </td>
+                                <td class="p-4 text-center">
+                                    ${ret > 0 ? `<span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-bold text-xs">+${ret}</span>` : '<span class="text-gray-300">-</span>'}
+                                </td>
+                                <td class="p-4 text-right font-black text-blue-700 bg-gray-50 border-l border-gray-100 text-base">${closingStock}</td>
+                            </tr>
+                        `;
+                        runningOpeningStock = closingStock;
+                    });
+                    
+                    htmlContent += `</tbody></table></div>`;
+                }
+
+                historyContainer.innerHTML = htmlContent;
 
             } catch (err) {
                 console.error("Load Data Error:", err);
                 if(err.code === 'permission-denied') {
                      Swal.fire('Permission Error', 'ඔබට දත්ත කියවීමට හෝ ලිවීමට අවසර නොමැත. කරුණාකර Firebase Rules යාවත්කාලීන කරන්න.', 'error');
                 } else {
-                     Swal.fire('Error', 'දත්ත ලබාගැනීමේදී දෝෂයක් සිදු විය: ' + err.message, 'error');
+                     Swal.fire('Error', 'දත්ත ලබාගැනීමේදී දෝෂයක් සිදු විය.', 'error');
                 }
             }
         }
 
+        // Modal Controls with Animation
+        const modal = document.getElementById('transaction-modal');
+        const modalContent = document.getElementById('modal-content');
+
         function openModal() {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('input-date').value = today;
-            document.getElementById('input-receive').value = 0;
-            document.getElementById('input-issue').value = 0;
-            document.getElementById('input-return').value = 0;
-            document.getElementById('transaction-modal').classList.remove('hidden');
+            document.getElementById('input-receive').value = '';
+            document.getElementById('input-issue').value = '';
+            document.getElementById('input-return').value = '';
+            
+            modal.classList.remove('hidden');
+            // Allow display block to apply before animating opacity/transform
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.classList.add('opacity-100');
+                modalContent.classList.remove('translate-y-full');
+                modalContent.classList.remove('md:translate-y-10');
+                modalContent.classList.add('translate-y-0');
+            }, 10);
         }
 
         function closeModal() {
-            document.getElementById('transaction-modal').classList.add('hidden');
+            modal.classList.remove('opacity-100');
+            modal.classList.add('opacity-0');
+            modalContent.classList.remove('translate-y-0');
+            modalContent.classList.add('translate-y-full');
+            modalContent.classList.add('md:translate-y-10');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300); // Wait for transition
         }
 
         async function saveTransactionRecord() {
@@ -269,14 +405,14 @@
             }
 
             if (receiveVal === 0 && issueVal === 0 && returnVal === 0) {
-                Swal.fire('Warning', 'කරුණාකර අවම වශයෙන් එක් අගයක්වත් (Receive, Issue හෝ Return) ඇතුලත් කරන්න.', 'warning');
+                Swal.fire('Warning', 'අවම වශයෙන් එක් අගයක්වත් ඇතුලත් කරන්න.', 'warning');
                 return;
             }
 
             const docId = `${safeDocId}_${dateVal}`;
 
             try {
-                Swal.fire({ title: 'Saving Record...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                Swal.fire({ title: 'Saving...', text: 'කරුණාකර රැඳී සිටින්න', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
                 await db.collection('transactions').doc(docId).set({
                     materialCode: currentMaterialCode,
@@ -287,9 +423,10 @@
                 }, { merge: true });
 
                 closeModal();
+                
                 Swal.fire({
                     title: 'සාර්ථකයි!',
-                    text: 'තොරතුරු සාර්ථකව යාවත්කාලීන විය.',
+                    text: 'දත්ත යාවත්කාලීන විය.',
                     icon: 'success',
                     timer: 1500,
                     showConfirmButton: false
@@ -300,13 +437,23 @@
             } catch (err) {
                 console.error("Save Data Error:", err);
                 if(err.code === 'permission-denied') {
-                     Swal.fire('Permission Error', 'ඔබට දත්ත ඇතුලත් කිරීමට අවසර නොමැත. කරුණාකර Firebase Rules යාවත්කාලීන කරන්න.', 'error');
+                     Swal.fire('Permission Error', 'ඔබට දත්ත ඇතුලත් කිරීමට අවසර නොමැත.', 'error');
                 } else {
-                     Swal.fire('Error', 'දත්ත සුරැකීමේදී දෝෂයක් සිදු විය: ' + err.message, 'error');
+                     Swal.fire('Error', 'දෝෂයක් සිදු විය: ' + err.message, 'error');
                 }
             }
         }
 
+        // Auto reload on window resize to switch between Mobile Card UI and Desktop Table UI seamlessly
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                loadItemBinCard();
+            }, 250);
+        });
+
+        // Initialize
         window.addEventListener('DOMContentLoaded', loadItemBinCard);
     </script>
 </body>
