@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Item Bin Card - Pro UI</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Custom Styles -->
+    <style>
+        body { background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
+        
+        .fade-in {
+            animation: fadeIn 0.25s ease-out forwards;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .search-dropdown {
+            max-height: 250px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+
+        .modal-glass {
+            background: rgba(255, 255, 255, 0.98);
+        }
+    </style>
+</head>
+<body class="font-sans text-gray-800 antialiased selection:bg-blue-200">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-gradient-to-r from-blue-800 to-blue-600 text-white shadow-lg sticky top-0 z-40">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center relative">
+            <h1 class="text-lg md:text-xl font-bold flex items-center gap-2 tracking-wide">
+                <i class="fas fa-layer-group text-blue-200"></i> Bin Card
+            </h1>
+            
+            <div class="flex items-center gap-2">
+                <!-- Search Icon Toggle Button -->
+                <button onclick="toggleSearchBox()" class="bg-white/20 hover:bg-white/30 text-white w-9 h-9 rounded-full flex items-center justify-center transition shadow-sm" title="Search Item">
+                    <i class="fas fa-search text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Floating Search Dropdown Box (Hidden by default) -->
+            <div id="search-box-container" class="absolute top-14 right-4 left-4 bg-white rounded-xl shadow-2xl border border-gray-100 p-3 hidden z-50 fade-in text-gray-800">
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input type="text" id="search-input" oninput="filterItems(this.value)" placeholder="Search by Material Code or Name..." class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-10 pr-10 py-2.5 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition font-medium">
+                    <button onclick="toggleSearchBox()" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <!-- Search Results List -->
+                <div id="search-results" class="search-dropdown mt-2 divide-y divide-gray-100 hidden">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 max-w-4xl pb-24 pt-6">
+        
+        <!-- Hero Details Card -->
+        <div class="bg-white rounded-2xl shadow-xl p-5 md:p-8 mb-8 relative border-t-4 border-blue-500 fade-in overflow-hidden">
+            <div class="absolute -right-10 -top-10 text-blue-50 opacity-50 pointer-events-none">
+                <i class="fas fa-box-open" style="font-size: 150px;"></i>
+            </div>
+            
+            <div class="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div>
+                    <div class="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-3 shadow-sm border border-blue-100">
+                        <i class="fas fa-tag"></i> Material Info
+                    </div>
+                    <h2 class="text-2xl md:text-3xl font-extrabold text-gray-900 leading-tight" id="display-mat-name">Loading...</h2>
+                    <div class="mt-2 flex items-center gap-2 text-gray-500 bg-gray-50 inline-block px-3 py-1.5 rounded-lg border">
+                        <i class="fas fa-barcode"></i> 
+                        <span class="font-mono font-bold text-gray-700" id="display-mat-code">---</span>
+                    </div>
+                </div>
+                
+                <div class="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-2xl p-4 text-center md:text-right min-w-[140px] shadow-sm transform hover:scale-105 transition duration-300">
+                    <p class="text-xs text-green-700 font-bold uppercase tracking-wider mb-1">Base Op. Stock</p>
+                    <p class="text-3xl md:text-4xl font-black text-green-800" id="display-op-stock">0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Section Title -->
+        <div class="flex items-center gap-3 mb-4 px-1 fade-in">
+            <div class="h-8 w-1 bg-yellow-400 rounded-full"></div>
+            <h3 class="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-history text-gray-400"></i> Movement History
+            </h3>
+        </div>
+
+        <!-- History Container -->
+        <div id="history-container" class="fade-in">
+            <div class="bg-white rounded-2xl shadow-md p-8 text-center text-gray-400 border border-gray-100">
+                <i class="fas fa-spinner fa-spin text-3xl mb-3 text-blue-500"></i>
+                <p>Loading records...</p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Floating Action Button (FAB) -->
+    <button onclick="openModal()" 
+        class="fixed bottom-6 right-6 md:bottom-10 md:right-10 bg-blue-600 hover:bg-blue-700 text-white rounded-full w-14 h-14 md:w-16 md:h-16 flex items-center justify-center shadow-2xl transition transform hover:scale-110 active:scale-95 z-40"
+        title="Add Movement">
+        <i class="fas fa-plus text-2xl"></i>
+    </button>
+
+    <!-- Modern Glass Modal -->
+    <div id="transaction-modal" class="fixed inset-0 bg-gray-900/40 hidden flex items-end md:items-center justify-center z-50 transition-opacity duration-200 opacity-0">
+        <div class="modal-glass w-full max-w-md rounded-t-3xl md:rounded-2xl shadow-2xl overflow-hidden transform translate-y-full md:translate-y-10 transition-transform duration-200" id="modal-content">
+            
+            <div class="px-6 py-4 border-b flex justify-between items-center bg-white">
+                <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
+                    <div class="bg-blue-100 text-blue-600 p-2 rounded-lg"><i class="fas fa-pen"></i></div>
+                    Update Stock
+                </h3>
+                <button onclick="closeModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-full w-8 h-8 flex items-center justify-center transition">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="p-6 bg-white">
+                <div class="mb-5">
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Select Date</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
+                            <i class="fas fa-calendar-alt"></i>
+                        </div>
+                        <input type="date" id="input-date" class="w-full border-2 border-gray-200 rounded-xl pl-10 p-3 text-sm font-semibold focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none transition bg-white shadow-sm">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3 mb-6">
+                    <div class="bg-green-50 p-3 rounded-xl border border-green-100 text-center">
+                        <label class="block text-[10px] font-bold text-green-700 uppercase tracking-wide mb-1"><i class="fas fa-arrow-down mb-1 text-sm block"></i> Receive</label>
+                        <input type="number" id="input-receive" min="0" placeholder="0" class="w-full bg-white border border-green-200 rounded-lg p-2 text-center font-bold text-green-700 focus:outline-none focus:border-green-500 shadow-inner">
+                    </div>
+                    <div class="bg-red-50 p-3 rounded-xl border border-red-100 text-center">
+                        <label class="block text-[10px] font-bold text-red-700 uppercase tracking-wide mb-1"><i class="fas fa-arrow-up mb-1 text-sm block"></i> Issue</label>
+                        <input type="number" id="input-issue" min="0" placeholder="0" class="w-full bg-white border border-red-200 rounded-lg p-2 text-center font-bold text-red-700 focus:outline-none focus:border-red-500 shadow-inner">
+                    </div>
+                    <div class="bg-blue-50 p-3 rounded-xl border border-blue-100 text-center">
+                        <label class="block text-[10px] font-bold text-blue-700 uppercase tracking-wide mb-1"><i class="fas fa-undo mb-1 text-sm block"></i> Return</label>
+                        <input type="number" id="input-return" min="0" placeholder="0" class="w-full bg-white border border-blue-200 rounded-lg p-2 text-center font-bold text-blue-700 focus:outline-none focus:border-blue-500 shadow-inner">
+                    </div>
+                </div>
+
+                <button onclick="saveTransactionRecord()" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3.5 rounded-xl text-sm transition shadow-lg shadow-blue-500/30 flex justify-center items-center gap-2 transform active:scale-95">
+                    <i class="fas fa-check-circle"></i> Save Movement
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // FIREBASE CONFIGURATION
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUbL9Q28whHtrJ1Q-J1HzFO-ybQa11y0U",
+            authDomain: "qr-to-bin-card.firebaseapp.com",
+            projectId: "qr-to-bin-card",
+            storageBucket: "qr-to-bin-card.firebasestorage.app",
+            messagingSenderId: "64518992022",
+            appId: "1:64518992022:web:4e55b994b91765064ad2b7",
+            measurementId: "G-9PHQBG7F88"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Enable offline persistence for instant UI rendering
+        db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+            console.warn("Firestore persistence notice:", err.code);
+        });
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const rawCode = urlParams.get('code');
+        const currentMaterialCode = rawCode ? rawCode.trim() : "";
+        const safeDocId = currentMaterialCode.replace(/\//g, '_'); 
+
+        let baseOpeningStock = 0;
+        let allItemsCache = []; // Cache for quick search
+        let cachedTransactions = []; // Memory cache to prevent re-fetching on resize
+        let isSearchFetching = false;
+
+        function escapeHtml(str) {
+            return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+        // Toggle Search Box
+        function toggleSearchBox() {
+            const box = document.getElementById('search-box-container');
+            const input = document.getElementById('search-input');
+            const resultsDiv = document.getElementById('search-results');
+
+            if (box.classList.contains('hidden')) {
+                box.classList.remove('hidden');
+                input.focus();
+
+                // Load the search data first. If the user has already typed,
+                // run the search again after Firestore data is ready.
+                fetchAllItemsForSearch().then(() => {
+                    if (!box.classList.contains('hidden') && input.value.trim()) {
+                        filterItems(input.value);
+                    }
+                });
+            } else {
+                box.classList.add('hidden');
+                resultsDiv.classList.add('hidden');
+                resultsDiv.innerHTML = '';
+            }
+        }
+
+        // Fetch items once for fast search.
+        // Always return the same promise while a request is in progress so
+        // multiple quick calls cannot start duplicate Firestore reads.
+        let searchFetchPromise = null;
+
+        async function fetchAllItemsForSearch() {
+            if (allItemsCache.length > 0) return allItemsCache;
+            if (searchFetchPromise) return searchFetchPromise;
+
+            isSearchFetching = true;
+            searchFetchPromise = db.collection('items').get()
+                .then(snapshot => {
+                    allItemsCache = [];
+                    snapshot.forEach(doc => {
+                        const data = doc.data() || {};
+
+                        // Keep the Firestore document id as a fallback.
+                        // This helps when older records do not contain
+                        // materialCode as a field.
+                        allItemsCache.push({
+                            ...data,
+                            _docId: doc.id
+                        });
+                    });
+                    return allItemsCache;
+                })
+                .catch(e => {
+                    console.error("Error fetching items for search:", e);
+                    allItemsCache = [];
+                    throw e;
+                })
+                .finally(() => {
+                    isSearchFetching = false;
+                    searchFetchPromise = null;
+                });
+
+            return searchFetchPromise;
+        }
+
+        // Dynamic filtering for search
+        async function filterItems(query) {
+            const resultsDiv = document.getElementById('search-results');
+            const q = String(query || '').toLocaleLowerCase().trim();
+
+            if (!q) {
+                resultsDiv.classList.add('hidden');
+                resultsDiv.innerHTML = '';
+                return;
+            }
+
+            // Prevent the first keystrokes from searching an empty cache.
+            if (allItemsCache.length === 0) {
+                try {
+                    await fetchAllItemsForSearch();
+                } catch (e) {
+                    resultsDiv.innerHTML = `
+                        <div class="p-3 text-center text-xs text-red-500">
+                            Search data ලබාගැනීමට නොහැකි විය. නැවත උත්සාහ කරන්න.
+                        </div>`;
+                    resultsDiv.classList.remove('hidden');
+                    return;
+                }
+
+                // Ignore an old async response if the input changed.
+                const latestQuery = document.getElementById('search-input').value;
+                if (String(latestQuery).trim() !== String(query).trim()) {
+                    return;
+                }
+            }
+
+            const filtered = allItemsCache.filter(item => {
+                const code = String(item.materialCode ?? item.code ?? item._docId ?? '')
+                    .toLocaleLowerCase()
+                    .trim();
+                const name = String(item.materialName ?? item.name ?? '')
+                    .toLocaleLowerCase()
+                    .trim();
+
+                return code.includes(q) || name.includes(q);
+            });
+
+            if (filtered.length === 0) {
+                resultsDiv.innerHTML = `
+                    <div class="p-3 text-center text-xs text-gray-400">
+                        අයිතම හමු නොවීය
+                    </div>`;
+                resultsDiv.classList.remove('hidden');
+                return;
+            }
+
+            // Show a reasonable number of matches to keep the dropdown fast.
+            const visibleResults = filtered.slice(0, 50);
+            const currentUrl = window.location.href.split('?')[0];
+
+            let html = '';
+            visibleResults.forEach(item => {
+                const materialCode = String(item.materialCode ?? item.code ?? item._docId ?? '');
+                const materialName = String(item.materialName ?? item.name ?? '-');
+
+                // Do not create a broken "?code=" link for records with no code.
+                const link = materialCode
+                    ? `${currentUrl}?code=${encodeURIComponent(materialCode)}`
+                    : '#';
+
+                html += `
+                    <a href="${link}" class="block p-2.5 hover:bg-blue-50 transition rounded-lg"
+                       ${materialCode ? '' : 'onclick="return false;"'}>
+                        <p class="font-bold text-sm text-blue-700">${escapeHtml(materialCode)}</p>
+                        <p class="text-xs text-gray-600 truncate">${escapeHtml(materialName)}</p>
+                    </a>
+                `;
+            });
+
+            if (filtered.length > visibleResults.length) {
+                html += `
+                    <div class="p-2 text-center text-[11px] text-gray-400 border-t">
+                        ${filtered.length - visibleResults.length} more results...
+                    </div>`;
+            }
+
+            resultsDiv.innerHTML = html;
+            resultsDiv.classList.remove('hidden');
+        }
+
+        async function loadItemBinCard() {
+            if (!currentMaterialCode) {
+                Swal.fire('Error', 'Material Code එකක් ලබාදී නොමැත. කරුණාකර Admin Panel හරහා හෝ QR Code එක scan කර පිවිසෙන්න.', 'error');
+                document.getElementById('display-mat-name').innerText = "Code Missing!";
+                return;
+            }
+
+            document.getElementById('display-mat-code').innerText = currentMaterialCode;
+
+            try {
+                // Execute queries in parallel for ultra-fast loading
+                const [itemDoc, snapshot] = await Promise.all([
+                    db.collection('items').doc(safeDocId).get(),
+                    db.collection('transactions').where('materialCode', '==', currentMaterialCode).get()
+                ]);
+
+                if (!itemDoc.exists) {
+                    document.getElementById('display-mat-name').innerText = "Item Not Found";
+                    Swal.fire('Not Found', 'මෙම Material Code එකට අදාල දත්ත පද්ධතියේ නොමැත.', 'warning');
+                    return;
+                }
+
+                const itemData = itemDoc.data();
+                document.getElementById('display-mat-name').innerText = itemData.materialName || 'Unnamed Material';
+                baseOpeningStock = itemData.openingStock !== undefined ? Number(itemData.openingStock) : 0;
+                document.getElementById('display-op-stock').innerText = baseOpeningStock;
+
+                cachedTransactions = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    cachedTransactions.push({ ...data, __docId: doc.id });
+                });
+                
+                // Fast string comparison sorting YYYY-MM-DD
+                cachedTransactions.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+                renderHistoryTable();
+
+            } catch (err) {
+                console.error("Load Data Error:", err);
+                if (err.code === 'permission-denied') {
+                    Swal.fire('Permission Error', 'ඔබට දත්ත කියවීමට හෝ ලිවීමට අවසර නොමැත.', 'error');
+                } else {
+                    Swal.fire('Error', 'දත්ත ලබාගැනීමේදී දෝෂයක් සිදු විය.', 'error');
+                }
+            }
+        }
+
+        function renderHistoryTable() {
+            const historyContainer = document.getElementById('history-container');
+            let runningOpeningStock = baseOpeningStock;
+
+            // Calculate stock chronologically, while displaying newest dates first.
+            const stockByDate = {};
+            let chronologicalStock = baseOpeningStock;
+            [...cachedTransactions].sort((a, b) => (a.date || '').localeCompare(b.date || '')).forEach(trx => {
+                const r = Number(trx.receive || 0);
+                const i = Number(trx.issue || 0);
+                const ret = Number(trx.return || 0);
+                const opening = chronologicalStock;
+                const closing = opening + r + ret - i;
+                stockByDate[trx.date || ''] = { opening, closing };
+                chronologicalStock = closing;
+            });
+
+            if (cachedTransactions.length === 0) {
+                historyContainer.innerHTML = `
+                    <div class="bg-white rounded-2xl shadow-sm p-8 text-center text-gray-500 border border-gray-100 flex flex-col items-center justify-center">
+                        <div class="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mb-3">
+                            <i class="fas fa-folder-open text-2xl text-gray-300"></i>
+                        </div>
+                        <p class="font-medium">කිසිදු දෛනික චලනයක් (Movements) නැත.</p>
+                        <p class="text-sm mt-1">දැනට පවතින Closing Stock: <b class="text-blue-600">${baseOpeningStock}</b></p>
+                    </div>
+                `;
+                return;
+            }
+
+            const isMobile = window.innerWidth < 768;
+            let htmlContent = '';
+
+            if (isMobile) {
+                htmlContent = `<div class="space-y-4">`;
+                cachedTransactions.forEach(trx => {
+                    const r = Number(trx.receive || 0);
+                    const i = Number(trx.issue || 0);
+                    const ret = Number(trx.return || 0);
+                    const stock = stockByDate[trx.date || ''] || { opening: baseOpeningStock, closing: baseOpeningStock };
+                    const openingStock = stock.opening;
+                    const closingStock = stock.closing;
+
+                    htmlContent += `
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 relative overflow-hidden transition-all hover:shadow-md">
+                            <div class="flex justify-between items-center mb-3 border-b border-gray-50 pb-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="bg-blue-100 text-blue-600 p-1.5 rounded-lg"><i class="fas fa-calendar-day text-xs"></i></div>
+                                    <span class="font-bold text-gray-800 text-sm">${escapeHtml(trx.date)}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="text-right">
+                                        <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Op. Stock</span>
+                                        <span class="font-semibold text-gray-600">${openingStock}</span>
+                                    </div>
+                                    <button type="button" onclick="deleteDateRecords('${escapeHtml(trx.date || '')}')" class="w-9 h-9 rounded-full bg-red-50 text-red-600 hover:bg-red-100 flex items-center justify-center transition" title="Delete this date">
+                                        <i class="fas fa-trash-alt text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-between items-center bg-gray-50 rounded-xl p-3 mb-3">
+                                <div class="text-center w-1/3 border-r border-gray-200">
+                                    <span class="text-[10px] text-green-600 font-bold uppercase block mb-1">Rec (+)</span>
+                                    <span class="font-black text-green-600">${r > 0 ? r : '-'}</span>
+                                </div>
+                                <div class="text-center w-1/3 border-r border-gray-200">
+                                    <span class="text-[10px] text-red-600 font-bold uppercase block mb-1">Iss (-)</span>
+                                    <span class="font-black text-red-600">${i > 0 ? i : '-'}</span>
+                                </div>
+                                <div class="text-center w-1/3">
+                                    <span class="text-[10px] text-blue-500 font-bold uppercase block mb-1">Ret (+)</span>
+                                    <span class="font-black text-blue-500">${ret > 0 ? ret : '-'}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-between items-center bg-blue-600 text-white rounded-xl p-3 shadow-inner">
+                                <span class="text-xs font-bold uppercase tracking-wider">Closing Stock</span>
+                                <span class="text-xl font-black">${closingStock}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                htmlContent += `</div>`;
+            } else {
+                htmlContent = `
+                    <div class="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider border-b border-gray-200">
+                                    <th class="p-4 font-bold">Date</th>
+                                    <th class="p-4 font-bold text-right">Op. Stock</th>
+                                    <th class="p-4 font-bold text-center text-green-600"><i class="fas fa-arrow-down"></i> Receive</th>
+                                    <th class="p-4 font-bold text-center text-red-600"><i class="fas fa-arrow-up"></i> Issue</th>
+                                    <th class="p-4 font-bold text-center text-blue-500"><i class="fas fa-undo"></i> Return</th>
+                                    <th class="p-4 font-bold text-right text-gray-800 bg-gray-100">Closing Stock</th>
+                                    <th class="p-4 font-bold text-center text-red-600">Delete</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 text-sm">
+                `;
+                
+                cachedTransactions.forEach(trx => {
+                    const r = Number(trx.receive || 0);
+                    const i = Number(trx.issue || 0);
+                    const ret = Number(trx.return || 0);
+                    const stock = stockByDate[trx.date || ''] || { opening: baseOpeningStock, closing: baseOpeningStock };
+                    const openingStock = stock.opening;
+                    const closingStock = stock.closing;
+
+                    htmlContent += `
+                        <tr class="hover:bg-blue-50/50 transition-colors">
+                            <td class="p-4 font-semibold text-gray-800">${escapeHtml(trx.date)}</td>
+                            <td class="p-4 text-right font-medium text-gray-500">${openingStock}</td>
+                            <td class="p-4 text-center">
+                                ${r > 0 ? `<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full font-bold text-xs">+${r}</span>` : '<span class="text-gray-300">-</span>'}
+                            </td>
+                            <td class="p-4 text-center">
+                                ${i > 0 ? `<span class="bg-red-100 text-red-700 px-3 py-1 rounded-full font-bold text-xs">-${i}</span>` : '<span class="text-gray-300">-</span>'}
+                            </td>
+                            <td class="p-4 text-center">
+                                ${ret > 0 ? `<span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-bold text-xs">+${ret}</span>` : '<span class="text-gray-300">-</span>'}
+                            </td>
+                            <td class="p-4 text-right font-black text-blue-700 bg-gray-50 border-l border-gray-100 text-base">${closingStock}</td>
+                            <td class="p-4 text-center">
+                                <button type="button" onclick="deleteDateRecords('${escapeHtml(trx.date || '')}')" class="w-9 h-9 mx-auto rounded-lg bg-red-50 text-red-600 hover:bg-red-100 flex items-center justify-center transition" title="Delete this date">
+                                    <i class="fas fa-trash-alt text-xs"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                htmlContent += `</tbody></table></div>`;
+            }
+
+            historyContainer.innerHTML = htmlContent;
+        }
+
+        const modal = document.getElementById('transaction-modal');
+        const modalContent = document.getElementById('modal-content');
+
+        function openModal() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('input-date').value = today;
+            document.getElementById('input-receive').value = '';
+            document.getElementById('input-issue').value = '';
+            document.getElementById('input-return').value = '';
+            
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                modal.classList.remove('opacity-0');
+                modal.classList.add('opacity-100');
+                modalContent.classList.remove('translate-y-full');
+                modalContent.classList.remove('md:translate-y-10');
+                modalContent.classList.add('translate-y-0');
+            });
+        }
+
+        function closeModal() {
+            modal.classList.remove('opacity-100');
+            modal.classList.add('opacity-0');
+            modalContent.classList.remove('translate-y-0');
+            modalContent.classList.add('translate-y-full');
+            modalContent.classList.add('md:translate-y-10');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 200);
+        }
+
+        async function deleteDateRecords(dateVal) {
+            if (!dateVal || !currentMaterialCode) return;
+
+            // Admin password is required before any delete confirmation/action.
+            const passwordResult = await Swal.fire({
+                title: 'Admin Password',
+                text: `${dateVal} දිනයේ දත්ත මැකීමට Admin password එක ඇතුළත් කරන්න.`,
+                input: 'password',
+                inputPlaceholder: 'Password',
+                inputAttributes: {
+                    autocapitalize: 'off',
+                    autocorrect: 'off',
+                    autocomplete: 'off'
+                },
+                showCancelButton: true,
+                confirmButtonText: 'ඉදිරියට යන්න',
+                cancelButtonText: 'අවලංගු කරන්න',
+                confirmButtonColor: '#2563eb',
+                reverseButtons: true,
+                inputValidator: (value) => {
+                    if (!value) return 'කරුණාකර Admin password එක ඇතුළත් කරන්න.';
+                    if (value !== '0009') return 'Password එක වැරදියි.';
+                    return undefined;
+                }
+            });
+
+            if (!passwordResult.isConfirmed || passwordResult.value !== '0009') return;
+
+            const confirmResult = await Swal.fire({
+                title: 'මෙම දිනයේ දත්ත මකන්නද?',
+                html: `<b>${escapeHtml(dateVal)}</b> දිනයට අදාළ Receive, Issue, Return ඇතුළු සියලුම movement data ඉවත් වේ.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'ඔව්, මකන්න',
+                cancelButtonText: 'අවලංගු කරන්න',
+                confirmButtonColor: '#dc2626',
+                reverseButtons: true
+            });
+
+            if (!confirmResult.isConfirmed) return;
+
+            try {
+                Swal.fire({ title: 'මකමින්...', text: 'කරුණාකර රැඳී සිටින්න', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+                // Delete every cached transaction document for this material + date.
+                // The initial load already fetched all transactions for this material,
+                // so this avoids an extra compound-index query.
+                const dateRecords = cachedTransactions.filter(trx => trx.date === dateVal && trx.__docId);
+                const batch = db.batch();
+                dateRecords.forEach(trx => {
+                    batch.delete(db.collection('transactions').doc(trx.__docId));
+                });
+                if (dateRecords.length > 0) {
+                    await batch.commit();
+                }
+
+                cachedTransactions = cachedTransactions.filter(trx => trx.date !== dateVal);
+                renderHistoryTable();
+
+                await Swal.fire({
+                    title: 'සාර්ථකයි!',
+                    text: `${dateVal} දිනයේ සියලුම movement data ඉවත් කරන ලදී.`,
+                    icon: 'success',
+                    timer: 1400,
+                    showConfirmButton: false
+                });
+            } catch (err) {
+                console.error('Delete Data Error:', err);
+                if (err.code === 'permission-denied') {
+                    Swal.fire('Permission Error', 'ඔබට මෙම දත්ත මකා දැමීමට අවසර නොමැත.', 'error');
+                } else {
+                    Swal.fire('Error', 'දත්ත මකා දැමීමේදී දෝෂයක් සිදු විය: ' + (err.message || err), 'error');
+                }
+            }
+        }
+
+        async function saveTransactionRecord() {
+            const dateVal = document.getElementById('input-date').value;
+            const receiveVal = Number(document.getElementById('input-receive').value) || 0;
+            const issueVal = Number(document.getElementById('input-issue').value) || 0;
+            const returnVal = Number(document.getElementById('input-return').value) || 0;
+
+            if (!dateVal) {
+                Swal.fire('Warning', 'කරුණාකර දිනයක් තෝරන්න.', 'warning');
+                return;
+            }
+
+            if (receiveVal === 0 && issueVal === 0 && returnVal === 0) {
+                Swal.fire('Warning', 'අවම වශයෙන් එක් අගයක්වත් ඇතුලත් කරන්න.', 'warning');
+                return;
+            }
+
+            const docId = `${safeDocId}_${dateVal}`;
+
+            try {
+                Swal.fire({ title: 'Saving...', text: 'කරුණාකර රැඳී සිටින්න', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+                await db.collection('transactions').doc(docId).set({
+                    materialCode: currentMaterialCode,
+                    date: dateVal,
+                    receive: firebase.firestore.FieldValue.increment(receiveVal),
+                    issue: firebase.firestore.FieldValue.increment(issueVal),
+                    return: firebase.firestore.FieldValue.increment(returnVal)
+                }, { merge: true });
+
+                closeModal();
+                
+                Swal.fire({
+                    title: 'සාර්ථකයි!',
+                    text: 'දත්ත යාවත්කාලීන විය.',
+                    icon: 'success',
+                    timer: 1200,
+                    showConfirmButton: false
+                });
+
+                loadItemBinCard();
+
+            } catch (err) {
+                console.error("Save Data Error:", err);
+                if (err.code === 'permission-denied') {
+                    Swal.fire('Permission Error', 'ඔබට දත්ත ඇතුලත් කිරීමට අවසර නොමැත.', 'error');
+                } else {
+                    Swal.fire('Error', 'දෝෂයක් සිදු විය: ' + err.message, 'error');
+                }
+            }
+        }
+
+        // Fast render on window resize without re-triggering network queries
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                renderHistoryTable();
+            }, 150);
+        });
+
+        window.addEventListener('DOMContentLoaded', loadItemBinCard);
+    </script>
+
+<!-- Bin Card Themes UI - additive only; original item page markup/logic remains unchanged -->
+<style id="bin-card-themes-item-style">
+/* Theme variables */
+:root{
+    --bin-theme-primary:#2563eb;
+    --bin-theme-primary-dark:#1d4ed8;
+    --bin-theme-primary-deep:#1e40af;
+    --bin-theme-soft:#eff6ff;
+    --bin-theme-soft-2:#dbeafe;
+    --bin-theme-text:#1e3a8a;
+    --bin-theme-bg:#f3f4f6;
+    --bin-theme-card:#ffffff;
+    --bin-theme-border:#e5e7eb;
+    --bin-theme-shadow:0 12px 28px rgba(15,23,42,.08);
+    --bin-theme-radius:18px;
+}
+
+/* Emerald Fresh */
+body.bin-theme-emerald{
+    --bin-theme-primary:#10b981; --bin-theme-primary-dark:#059669; --bin-theme-primary-deep:#047857;
+    --bin-theme-soft:#ecfdf5; --bin-theme-soft-2:#d1fae5; --bin-theme-text:#065f46;
+    --bin-theme-bg:#f0fdf4; --bin-theme-border:#d1fae5; --bin-theme-shadow:0 14px 30px rgba(5,150,105,.10);
+}
+body.bin-theme-emerald .bg-gradient-to-r.from-blue-800.to-blue-600{background:linear-gradient(90deg,#047857,#10b981)!important;}
+body.bin-theme-emerald .border-blue-500{border-color:#10b981!important;}
+body.bin-theme-emerald .bg-blue-600{background-color:#059669!important;}
+body.bin-theme-emerald .hover\:bg-blue-700:hover{background-color:#047857!important;}
+body.bin-theme-emerald .text-blue-700,.bin-theme-emerald .text-blue-600{color:#047857!important;}
+body.bin-theme-emerald .text-blue-500{color:#059669!important;}
+body.bin-theme-emerald .bg-blue-50{background-color:#ecfdf5!important;}
+body.bin-theme-emerald .bg-blue-100{background-color:#d1fae5!important;}
+body.bin-theme-emerald .border-blue-100{border-color:#a7f3d0!important;}
+body.bin-theme-emerald .focus\:border-blue-500:focus{border-color:#10b981!important;}
+body.bin-theme-emerald .focus\:ring-blue-500\/20:focus{--tw-ring-color:rgba(16,185,129,.2)!important;}
+body.bin-theme-emerald .shadow-blue-500\/30{--tw-shadow-color:rgba(16,185,129,.30)!important;}
+body.bin-theme-emerald{background-color:#f0fdf4!important;}
+body.bin-theme-emerald .hover\:bg-blue-50\/50:hover{background-color:rgba(236,253,245,.65)!important;}
+
+/* Royal Purple */
+body.bin-theme-purple{
+    --bin-theme-primary:#8b5cf6; --bin-theme-primary-dark:#7c3aed; --bin-theme-primary-deep:#6d28d9;
+    --bin-theme-soft:#f5f3ff; --bin-theme-soft-2:#ede9fe; --bin-theme-text:#5b21b6;
+    --bin-theme-bg:#faf7ff; --bin-theme-border:#ddd6fe; --bin-theme-shadow:0 16px 34px rgba(109,40,217,.11);
+}
+body.bin-theme-purple .bg-gradient-to-r.from-blue-800.to-blue-600{background:linear-gradient(90deg,#6d28d9,#8b5cf6)!important;}
+body.bin-theme-purple .border-blue-500{border-color:#8b5cf6!important;}
+body.bin-theme-purple .bg-blue-600{background-color:#7c3aed!important;}
+body.bin-theme-purple .hover\:bg-blue-700:hover{background-color:#6d28d9!important;}
+body.bin-theme-purple .text-blue-700,.bin-theme-purple .text-blue-600{color:#6d28d9!important;}
+body.bin-theme-purple .text-blue-500{color:#7c3aed!important;}
+body.bin-theme-purple .bg-blue-50{background-color:#f5f3ff!important;}
+body.bin-theme-purple .bg-blue-100{background-color:#ede9fe!important;}
+body.bin-theme-purple .border-blue-100{border-color:#ddd6fe!important;}
+body.bin-theme-purple .focus\:border-blue-500:focus{border-color:#8b5cf6!important;}
+body.bin-theme-purple .focus\:ring-blue-500\/20:focus{--tw-ring-color:rgba(139,92,246,.2)!important;}
+body.bin-theme-purple .shadow-blue-500\/30{--tw-shadow-color:rgba(139,92,246,.30)!important;}
+body.bin-theme-purple{background-color:#faf7ff!important;}
+body.bin-theme-purple .hover\:bg-blue-50\/50:hover{background-color:rgba(245,243,255,.70)!important;}
+
+/* Dark Slate */
+body.bin-theme-dark{
+    --bin-theme-primary:#64748b; --bin-theme-primary-dark:#475569; --bin-theme-primary-deep:#334155;
+    --bin-theme-soft:#1e293b; --bin-theme-soft-2:#334155; --bin-theme-text:#e2e8f0;
+    --bin-theme-bg:#0f172a; --bin-theme-card:#1e293b; --bin-theme-border:#334155;
+    --bin-theme-shadow:0 18px 38px rgba(0,0,0,.28);
+}
+body.bin-theme-dark{background-color:#0f172a!important;color:#e2e8f0!important;}
+body.bin-theme-dark .bg-gradient-to-r.from-blue-800.to-blue-600{background:linear-gradient(90deg,#0f172a,#334155)!important;}
+body.bin-theme-dark .text-gray-900{color:#f8fafc!important;}
+body.bin-theme-dark .text-gray-800{color:#e2e8f0!important;}
+body.bin-theme-dark .text-gray-700{color:#cbd5e1!important;}
+body.bin-theme-dark .text-gray-600{color:#94a3b8!important;}
+body.bin-theme-dark .text-gray-500{color:#94a3b8!important;}
+body.bin-theme-dark .text-gray-400{color:#64748b!important;}
+body.bin-theme-dark .bg-white{background-color:#1e293b!important;}
+body.bin-theme-dark .bg-gray-50{background-color:#172033!important;}
+body.bin-theme-dark .bg-gray-100{background-color:#0f172a!important;}
+body.bin-theme-dark .bg-gray-200{background-color:#334155!important;}
+body.bin-theme-dark .border-gray-50,.bin-theme-dark .border-gray-100,.bin-theme-dark .border-gray-200{border-color:#334155!important;}
+body.bin-theme-dark .border-blue-500{border-color:#64748b!important;}
+body.bin-theme-dark .bg-blue-600{background-color:#475569!important;}
+body.bin-theme-dark .hover\:bg-blue-700:hover{background-color:#334155!important;}
+body.bin-theme-dark .text-blue-700,.bin-theme-dark .text-blue-600,.bin-theme-dark .text-blue-500{color:#cbd5e1!important;}
+body.bin-theme-dark .bg-blue-50{background-color:#1e293b!important;}
+body.bin-theme-dark .bg-blue-100{background-color:#334155!important;}
+body.bin-theme-dark .border-blue-100{border-color:#475569!important;}
+body.bin-theme-dark .modal-glass{background:rgba(30,41,59,.98)!important;}
+body.bin-theme-dark input{color:#e2e8f0!important;background-color:#172033!important;border-color:#475569!important;}
+body.bin-theme-dark input::placeholder{color:#64748b!important;}
+body.bin-theme-dark .bg-green-50{background-color:#102a20!important;}
+body.bin-theme-dark .bg-green-100{background-color:#123d2c!important;}
+body.bin-theme-dark .text-green-800{color:#a7f3d0!important;}
+body.bin-theme-dark .text-green-700,.bin-theme-dark .text-green-600{color:#6ee7b7!important;}
+body.bin-theme-dark .border-green-100,.bin-theme-dark .border-green-200{border-color:#245c45!important;}
+body.bin-theme-dark .bg-red-50{background-color:#351a20!important;}
+body.bin-theme-dark .bg-red-100{background-color:#51212b!important;}
+body.bin-theme-dark .text-red-700,.bin-theme-dark .text-red-600{color:#fda4af!important;}
+body.bin-theme-dark .border-red-100{border-color:#6b2c38!important;}
+body.bin-theme-dark .text-yellow-400{color:#facc15!important;}
+body.bin-theme-dark .hover\:bg-gray-200:hover{background-color:#475569!important;}
+body.bin-theme-dark .divide-gray-100> :not([hidden])~ :not([hidden]){border-color:#334155!important;}
+
+/* Common visual differences for all alternative themes */
+body.bin-theme-emerald main > .relative,
+body.bin-theme-purple main > .relative,
+body.bin-theme-dark main > .relative{
+    border-top-width:0!important;
+    border-left:5px solid var(--bin-theme-primary)!important;
+    border-radius:var(--bin-theme-radius)!important;
+    box-shadow:var(--bin-theme-shadow)!important;
+}
+body.bin-theme-emerald #history-container > div,
+body.bin-theme-purple #history-container > div,
+body.bin-theme-dark #history-container > div{
+    border-radius:var(--bin-theme-radius)!important;
+    box-shadow:var(--bin-theme-shadow)!important;
+}
+body.bin-theme-emerald #history-container .rounded-2xl,
+body.bin-theme-purple #history-container .rounded-2xl,
+body.bin-theme-dark #history-container .rounded-2xl{
+    border-radius:var(--bin-theme-radius)!important;
+}
+body.bin-theme-emerald #history-container .bg-blue-600,
+body.bin-theme-purple #history-container .bg-blue-600,
+body.bin-theme-dark #history-container .bg-blue-600{
+    background:linear-gradient(135deg,var(--bin-theme-primary-deep),var(--bin-theme-primary))!important;
+}
+body.bin-theme-emerald header,
+body.bin-theme-purple header,
+body.bin-theme-dark header{
+    box-shadow:0 8px 24px rgba(15,23,42,.16)!important;
+}
+body.bin-theme-emerald .fixed.bottom-6,
+body.bin-theme-purple .fixed.bottom-6,
+body.bin-theme-dark .fixed.bottom-6{
+    box-shadow:0 14px 30px rgba(15,23,42,.20)!important;
+}
+
+/* Purple gets a softer glass effect */
+body.bin-theme-purple main > .relative{
+    background:linear-gradient(135deg,rgba(255,255,255,.98),rgba(245,243,255,.98))!important;
+}
+body.bin-theme-purple #history-container .bg-white{
+    background:rgba(255,255,255,.94)!important;
+    backdrop-filter:blur(8px);
+}
+
+/* =========================================================
+   Additional full-UI themes (layout + surfaces + typography)
+   ========================================================= */
+
+/* 1) Glass Aurora — immersive glassmorphism */
+body.bin-theme-aurora{
+    --bin-theme-primary:#22d3ee; --bin-theme-primary-dark:#0891b2; --bin-theme-primary-deep:#7c3aed;
+    --bin-theme-bg:#07111f; --bin-theme-card:rgba(15,23,42,.68); --bin-theme-border:rgba(255,255,255,.16);
+    --bin-theme-shadow:0 24px 60px rgba(0,0,0,.32); --bin-theme-radius:24px;
+    background:radial-gradient(circle at 12% 8%,rgba(34,211,238,.18),transparent 30%),radial-gradient(circle at 88% 18%,rgba(167,139,250,.20),transparent 34%),linear-gradient(135deg,#07111f 0%,#101b34 48%,#25133e 100%)!important;
+    color:#e5eefb!important;
+}
+body.bin-theme-aurora header{
+    margin:12px auto 0; width:calc(100% - 24px); max-width:1040px; border-radius:22px;
+    background:linear-gradient(120deg,rgba(8,145,178,.90),rgba(124,58,237,.90),rgba(236,72,153,.82))!important;
+    backdrop-filter:blur(18px); border:1px solid rgba(255,255,255,.18); position:sticky;
+    box-shadow:0 18px 45px rgba(0,0,0,.25)!important;
+}
+body.bin-theme-aurora main{max-width:1000px!important;padding-top:30px!important;}
+body.bin-theme-aurora main > .relative{
+    background:linear-gradient(135deg,rgba(255,255,255,.13),rgba(255,255,255,.055))!important;
+    backdrop-filter:blur(18px); border:1px solid rgba(255,255,255,.16)!important;
+    border-top:0!important; border-radius:28px!important; box-shadow:0 24px 60px rgba(0,0,0,.28)!important;
+}
+body.bin-theme-aurora #history-container > div{
+    background:rgba(15,23,42,.62)!important; backdrop-filter:blur(16px);
+    border:1px solid rgba(255,255,255,.12)!important; box-shadow:0 18px 45px rgba(0,0,0,.24)!important;
+}
+body.bin-theme-aurora .text-gray-900{color:#f8fafc!important;}
+body.bin-theme-aurora .text-gray-800{color:#e5eefb!important;}
+body.bin-theme-aurora .text-gray-700{color:#cbd5e1!important;}
+body.bin-theme-aurora .text-gray-600,body.bin-theme-aurora .text-gray-500{color:#a7b7ca!important;}
+body.bin-theme-aurora .text-gray-400{color:#7f91aa!important;}
+body.bin-theme-aurora .bg-white{background:rgba(15,23,42,.72)!important;color:#e5eefb;}
+body.bin-theme-aurora .bg-gray-50{background:rgba(255,255,255,.06)!important;}
+body.bin-theme-aurora .bg-gray-100{background:rgba(255,255,255,.08)!important;}
+body.bin-theme-aurora .border-gray-50,body.bin-theme-aurora .border-gray-100,body.bin-theme-aurora .border-gray-200{border-color:rgba(255,255,255,.12)!important;}
+body.bin-theme-aurora .bg-blue-600{background:linear-gradient(135deg,#0891b2,#7c3aed)!important;}
+body.bin-theme-aurora .hover\:bg-blue-700:hover{background:linear-gradient(135deg,#0e7490,#6d28d9)!important;}
+body.bin-theme-aurora .text-blue-700,body.bin-theme-aurora .text-blue-600,body.bin-theme-aurora .text-blue-500{color:#67e8f9!important;}
+body.bin-theme-aurora .bg-blue-50{background:rgba(34,211,238,.10)!important;}
+body.bin-theme-aurora .bg-blue-100{background:rgba(34,211,238,.16)!important;}
+body.bin-theme-aurora .border-blue-100{border-color:rgba(34,211,238,.28)!important;}
+body.bin-theme-aurora .modal-glass{background:rgba(15,23,42,.96)!important;color:#e5eefb;}
+body.bin-theme-aurora input{background:rgba(255,255,255,.06)!important;color:#f8fafc!important;border-color:rgba(255,255,255,.18)!important;}
+body.bin-theme-aurora input::placeholder{color:#7890aa!important;}
+body.bin-theme-aurora .fixed.bottom-6{background:linear-gradient(135deg,#06b6d4,#8b5cf6)!important;border:1px solid rgba(255,255,255,.20);}
+
+/* 2) Neo Workspace — compact, structured, high-contrast */
+body.bin-theme-neo{
+    --bin-theme-primary:#111827; --bin-theme-primary-dark:#030712; --bin-theme-primary-deep:#0f172a;
+    --bin-theme-bg:#eef2ff; --bin-theme-card:#ffffff; --bin-theme-border:#c7d2fe; --bin-theme-radius:12px;
+    --bin-theme-shadow:6px 6px 0 rgba(99,102,241,.20); background:#eef2ff!important; color:#111827!important;
+}
+body.bin-theme-neo header{
+    position:sticky; top:10px; margin:10px 12px 0; border-radius:12px; max-width:none;
+    background:#111827!important; border:2px solid #111827; box-shadow:6px 6px 0 #a5b4fc!important;
+}
+body.bin-theme-neo main{max-width:1100px!important;padding-top:28px!important;}
+body.bin-theme-neo main > .relative{
+    border:2px solid #111827!important; border-top:2px solid #111827!important; border-radius:12px!important;
+    box-shadow:8px 8px 0 #c7d2fe!important; background:#fff!important;
+}
+body.bin-theme-neo #history-container > div{border:2px solid #111827!important;border-radius:12px!important;box-shadow:6px 6px 0 #c7d2fe!important;}
+body.bin-theme-neo .rounded-2xl{border-radius:12px!important;}
+body.bin-theme-neo .rounded-xl{border-radius:8px!important;}
+body.bin-theme-neo .bg-blue-600{background:#111827!important;}
+body.bin-theme-neo .hover\:bg-blue-700:hover{background:#030712!important;}
+body.bin-theme-neo .text-blue-700,body.bin-theme-neo .text-blue-600,body.bin-theme-neo .text-blue-500{color:#4338ca!important;}
+body.bin-theme-neo .bg-blue-50{background:#eef2ff!important;}
+body.bin-theme-neo .bg-blue-100{background:#e0e7ff!important;}
+body.bin-theme-neo .border-blue-100{border-color:#c7d2fe!important;}
+body.bin-theme-neo .border-blue-500{border-color:#111827!important;}
+body.bin-theme-neo .bg-gray-50{background:#f8fafc!important;}
+body.bin-theme-neo table thead tr{background:#111827!important;color:#fff!important;}
+body.bin-theme-neo table tbody tr:hover{background:#eef2ff!important;}
+body.bin-theme-neo input{border:2px solid #c7d2fe!important;border-radius:8px!important;}
+body.bin-theme-neo .fixed.bottom-6{border-radius:12px!important;background:#f97316!important;box-shadow:6px 6px 0 #111827!important;}
+
+/* 3) Paper Ledger — print-inspired stock book */
+body.bin-theme-paper{
+    --bin-theme-primary:#8b6b43; --bin-theme-primary-dark:#6f5130; --bin-theme-primary-deep:#4b3a28;
+    --bin-theme-bg:#f3eee3; --bin-theme-card:#fffdf7; --bin-theme-border:#d7c8b0; --bin-theme-radius:6px;
+    --bin-theme-shadow:0 5px 16px rgba(75,58,40,.10); background:#f3eee3!important;color:#3f3a33!important;
+    font-family:Georgia,'Times New Roman',serif!important;
+}
+body.bin-theme-paper header{
+    position:sticky;top:0;border-bottom:4px double #8b6b43; background:#3f3a33!important;
+    box-shadow:0 4px 14px rgba(63,58,51,.16)!important;
+}
+body.bin-theme-paper main{max-width:1040px!important;padding-top:24px!important;}
+body.bin-theme-paper main > .relative{
+    border:1px solid #cfc0a8!important;border-top:6px solid #8b6b43!important;border-radius:6px!important;
+    background:#fffdf7!important;box-shadow:0 10px 22px rgba(75,58,40,.10)!important;
+    background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 31px,rgba(139,107,67,.06) 32px)!important;
+}
+body.bin-theme-paper #history-container > div{background:#fffdf7!important;border:1px solid #cfc0a8!important;border-radius:6px!important;box-shadow:0 5px 16px rgba(75,58,40,.08)!important;}
+body.bin-theme-paper .rounded-2xl,body.bin-theme-paper .rounded-xl{border-radius:6px!important;}
+body.bin-theme-paper .bg-blue-600{background:#6f5130!important;}
+body.bin-theme-paper .hover\:bg-blue-700:hover{background:#4b3a28!important;}
+body.bin-theme-paper .text-blue-700,body.bin-theme-paper .text-blue-600,body.bin-theme-paper .text-blue-500{color:#6f5130!important;}
+body.bin-theme-paper .bg-blue-50{background:#f5efe4!important;}
+body.bin-theme-paper .bg-blue-100{background:#e9ddca!important;}
+body.bin-theme-paper .border-blue-100{border-color:#d7c8b0!important;}
+body.bin-theme-paper .bg-gray-50{background:#f7f2e8!important;}
+body.bin-theme-paper .bg-gray-100{background:#eee5d7!important;}
+body.bin-theme-paper .text-gray-900{color:#2f2a24!important;}
+body.bin-theme-paper .text-gray-800{color:#3f3a33!important;}
+body.bin-theme-paper .text-gray-700,body.bin-theme-paper .text-gray-600{color:#5d554b!important;}
+body.bin-theme-paper .border-gray-50,body.bin-theme-paper .border-gray-100,body.bin-theme-paper .border-gray-200{border-color:#d7c8b0!important;}
+body.bin-theme-paper table thead tr{background:#e9ddca!important;color:#4b3a28!important;}
+body.bin-theme-paper input{background:#fffdf7!important;border-color:#cfc0a8!important;color:#3f3a33!important;}
+body.bin-theme-paper .fixed.bottom-6{background:#8b6b43!important;border-radius:6px!important;box-shadow:0 5px 14px rgba(75,58,40,.25)!important;}
+
+/* 4) Sunset Bento — warm, friendly, modular cards */
+body.bin-theme-sunset{
+    --bin-theme-primary:#ea580c; --bin-theme-primary-dark:#c2410c; --bin-theme-primary-deep:#be185d;
+    --bin-theme-bg:#fff7ed; --bin-theme-card:#ffffff; --bin-theme-border:#fed7aa; --bin-theme-radius:26px;
+    --bin-theme-shadow:0 18px 40px rgba(234,88,12,.12); background:linear-gradient(145deg,#fff7ed,#fff1f2 50%,#fdf4ff)!important;
+}
+body.bin-theme-sunset header{
+    margin:10px 14px 0;border-radius:26px;background:linear-gradient(105deg,#ea580c,#db2777,#9333ea)!important;
+    box-shadow:0 14px 34px rgba(190,24,93,.22)!important;
+}
+body.bin-theme-sunset main{max-width:1080px!important;padding-top:30px!important;}
+body.bin-theme-sunset main > .relative{
+    border:1px solid #fed7aa!important;border-top:0!important;border-radius:30px!important;
+    background:linear-gradient(135deg,#fff,#fff7ed)!important;box-shadow:0 20px 45px rgba(234,88,12,.12)!important;
+}
+body.bin-theme-sunset #history-container > div{
+    border:1px solid #fed7aa!important;border-radius:24px!important;background:rgba(255,255,255,.88)!important;
+    box-shadow:0 14px 32px rgba(234,88,12,.09)!important;
+}
+body.bin-theme-sunset .rounded-2xl{border-radius:26px!important;}
+body.bin-theme-sunset .rounded-xl{border-radius:18px!important;}
+body.bin-theme-sunset .bg-blue-600{background:linear-gradient(135deg,#ea580c,#db2777)!important;}
+body.bin-theme-sunset .hover\:bg-blue-700:hover{background:linear-gradient(135deg,#c2410c,#be185d)!important;}
+body.bin-theme-sunset .text-blue-700,body.bin-theme-sunset .text-blue-600,body.bin-theme-sunset .text-blue-500{color:#c2410c!important;}
+body.bin-theme-sunset .bg-blue-50{background:#fff7ed!important;}
+body.bin-theme-sunset .bg-blue-100{background:#ffedd5!important;}
+body.bin-theme-sunset .border-blue-100{border-color:#fed7aa!important;}
+body.bin-theme-sunset .bg-gray-50{background:#fffaf5!important;}
+body.bin-theme-sunset .border-gray-50,body.bin-theme-sunset .border-gray-100,body.bin-theme-sunset .border-gray-200{border-color:#fde1c4!important;}
+body.bin-theme-sunset .fixed.bottom-6{background:linear-gradient(135deg,#ea580c,#db2777)!important;box-shadow:0 12px 28px rgba(190,24,93,.25)!important;}
+body.bin-theme-sunset table thead tr{background:#fff1e6!important;color:#9a3412!important;}
+body.bin-theme-sunset table tbody tr:hover{background:#fff7ed!important;}
+body.bin-theme-sunset input{border-color:#fed7aa!important;background:#fff!important;}
+
+/* Dark table/card details */
+body.bin-theme-dark table thead tr{background:#172033!important;color:#94a3b8!important;}
+body.bin-theme-dark table tbody tr:hover{background:rgba(51,65,85,.55)!important;}
+body.bin-theme-dark .bg-gray-50.border-l{background:#172033!important;}
+body.bin-theme-dark .bg-white.rounded-2xl.shadow-md,
+body.bin-theme-dark .bg-white.rounded-2xl.shadow-sm{background:#1e293b!important;}
+body.bin-theme-dark .bg-white{color:#e2e8f0;}
+body.bin-theme-dark .text-blue-50{color:#1e293b!important;}
+</style>
+
+<script id="bin-card-themes-item-script">
+(function(){
+    const KEY='binCardTheme';
+    const ALLOWED=['original','emerald','purple','dark','aurora','neo','paper','sunset'];
+    const SETTINGS_COLLECTION='appSettings';
+    const SETTINGS_DOC='global';
+
+    function normalizeTheme(theme){
+        theme=String(theme||'').trim().toLowerCase();
+        return ALLOWED.includes(theme) ? theme : 'original';
+    }
+
+    function getLocalTheme(){
+        try{return normalizeTheme(localStorage.getItem(KEY)||'original');}
+        catch(e){return 'original';}
+    }
+
+    function applyTheme(theme){
+        theme=normalizeTheme(theme);
+        const themeClasses=ALLOWED.map(t=>'bin-theme-'+t);
+        document.body.classList.remove(...themeClasses);
+        if(theme!=='original') document.body.classList.add('bin-theme-'+theme);
+        document.documentElement.setAttribute('data-bin-card-theme',theme);
+        document.body.setAttribute('data-bin-card-theme',theme);
+        try{localStorage.setItem(KEY,theme);}catch(e){}
+        return theme;
+    }
+
+    // Apply local cached value immediately to avoid a blank/default appearance.
+    applyTheme(getLocalTheme());
+
+    async function loadSharedTheme(){
+        try{
+            if(window.db && typeof db.collection==='function'){
+                const snap=await db.collection(SETTINGS_COLLECTION).doc(SETTINGS_DOC).get();
+                if(snap.exists){
+                    const theme=normalizeTheme((snap.data()||{}).binCardTheme);
+                    applyTheme(theme);
+                    return theme;
+                }
+            }
+        }catch(err){
+            console.warn('Shared Bin Card Theme read failed; keeping local cached theme.',err);
+        }
+        return getLocalTheme();
+    }
+
+    window.binCardThemes={
+        get:function(){return getLocalTheme();},
+        set:function(theme){return applyTheme(theme);},
+        apply:function(){return applyTheme(getLocalTheme());},
+        loadShared:loadSharedTheme
+    };
+
+    // Firebase is initialized by the main item.html script before this additive script.
+    // Load the authoritative shared theme after initialization.
+    if(document.readyState==='loading'){
+        document.addEventListener('DOMContentLoaded',loadSharedTheme,{once:true});
+    }else{
+        loadSharedTheme();
+    }
+
+    // Same-tab integrations.
+    window.addEventListener('bin-card-theme-change',function(e){
+        if(e && e.detail) applyTheme(e.detail.theme);
+    });
+
+    // Other tabs/windows on the same browser.
+    window.addEventListener('storage',function(e){
+        if(e.key===KEY && e.newValue) applyTheme(e.newValue);
+    });
+})();
+</script>
+
+</body>
+</html>
